@@ -50,41 +50,63 @@ export default function Trading() {
   // Debounced save function
   const debouncedSave = useCallback(
     async (data: MarketPriceFormData) => {
+      console.log('Starting debouncedSave with data:', data);
+      
       if (!currentUser) {
+        console.error('No currentUser found, cannot save');
         setError('You must be logged in to submit market prices');
         return;
       }
 
       if (!data.symbol || data.bidPrice <= 0 || data.offerPrice <= 0) {
+        console.log('Incomplete data, skipping save:', data);
         // Don't show error during data entry, just don't save yet
         return;
       }
 
       // Validate bid must be less than offer
       if (data.bidPrice >= data.offerPrice) {
+        console.warn('Invalid price relationship: bid must be < offer', data);
         setError('Bid price must be less than offer price');
         return;
       }
 
       try {
         setSavingInProgress(true);
+        console.log('Starting save to Firestore...');
         
         const quoteData = {
           ...data,
           userId: currentUser.uid
         };
         
+        console.log('Quote data to save:', quoteData);
+        console.log('Current quote ID:', currentQuote);
+        
         // If we already have a quote ID, update it rather than creating a new one
         if (currentQuote) {
-          await tradingService.updateMarketPrice(currentQuote, quoteData);
+          console.log('Updating existing quote with ID:', currentQuote);
+          await tradingService.updateMarketPrice(currentQuote, {
+            ...quoteData,
+            status: 'active',  // Required by the MarketPrice type
+            timestamp: null    // Will be set by serverTimestamp() in the service
+          });
+          console.log('Update successful');
         } else {
-          const newQuoteId = await tradingService.saveMarketPrice(quoteData);
+          console.log('Creating new quote...');
+          const newQuoteId = await tradingService.saveMarketPrice({
+            ...quoteData,
+            status: 'active',  // Required by the MarketPrice type 
+            timestamp: null    // Will be set by serverTimestamp() in the service
+          });
+          console.log('New quote created with ID:', newQuoteId);
           setCurrentQuote(newQuoteId);
         }
         
         setError('');
+        console.log('Save operation completed successfully');
       } catch (err) {
-        console.error('Error saving market price:', err);
+        console.error('Detailed error saving market price:', err);
         setError('Failed to save market price');
       } finally {
         setSavingInProgress(false);
