@@ -217,41 +217,25 @@ export default function Trading() {
     setTradeAmount({ ...tradeAmount, [type]: '' }); // Reset amount for the selected side
   };
 
-  // Add a proper number parsing function
-  const parseNumber = (value: string | number): number | null => {
-    console.log('parseNumber input:', { value, type: typeof value });
-    if (typeof value === 'number') return value;
-    if (value === '') return null;
-    const parsed = Number(value);
-    console.log('parseNumber result:', { parsed, isNaN: isNaN(parsed) });
-    return isNaN(parsed) ? null : parsed;
+  // Add this new function to ensure numeric inputs and return a number
+  const parseInputToNumber = (value: string): number => {
+    console.log('parseInputToNumber input:', { value, type: typeof value });
+    
+    // Remove any non-numeric characters
+    const cleanedValue = value.replace(/[^0-9]/g, '');
+    console.log('Cleaned value:', cleanedValue);
+    
+    // Parse as integer
+    const parsedValue = cleanedValue === '' ? 0 : parseInt(cleanedValue, 10);
+    console.log('Parsed result:', { parsedValue, type: typeof parsedValue });
+    
+    return parsedValue;
   };
 
-  // Add this new function to ensure numeric inputs
-  const ensureNumericInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Preserve the original input value
-    const originalValue = e.target.value;
-    console.log('Original input value:', { originalValue, type: typeof originalValue });
-    
-    // Only allow digits
-    if (/^[0-9]+$/.test(originalValue) || originalValue === '') {
-      return originalValue;
-    }
-    
-    // If the value contains non-digits, clean it
-    const cleanedValue = originalValue.replace(/[^0-9]/g, '');
-    console.log('Cleaned input value:', { cleanedValue, type: typeof cleanedValue });
-    
-    // Set the cleaned value back to the input field
-    e.target.value = cleanedValue;
-    return cleanedValue;
-  };
-
-  // Update the handleTradeAmountChange function
+  // Update the handleTradeAmountChange function to use direct number conversion
   const handleTradeAmountChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'bid' | 'offer') => {
-    // Force numeric input
-    const inputValue = ensureNumericInput(e);
-    console.log('handleTradeAmountChange input (after cleaning):', { type, inputValue, valueType: typeof inputValue });
+    const inputValue = e.target.value;
+    console.log('handleTradeAmountChange raw input:', { type, inputValue });
     
     // Allow empty input
     if (inputValue === '') {
@@ -261,12 +245,13 @@ export default function Trading() {
       return;
     }
 
-    // Parse the number using our helper
-    const numericValue = parseInt(inputValue, 10);
-    console.log('Parsed integer value:', { numericValue, type: typeof numericValue });
+    // Clean and parse as number directly
+    const numericValue = parseInputToNumber(inputValue);
+    console.log('Direct number conversion result:', { numericValue, type: typeof numericValue });
     
-    if (isNaN(numericValue) || numericValue <= 0) {
-      console.log('Invalid value detected:', { numericValue });
+    // Validate the numeric value
+    if (numericValue <= 0) {
+      console.log('Invalid value detected (zero or negative):', { numericValue });
       setError('Please enter a valid trade amount greater than 0');
       return;
     }
@@ -276,22 +261,36 @@ export default function Trading() {
     setError('');
   };
 
-  // Add a function to validate trade amount before attempting trade
+  // Update the validateTradeAmount function to use direct number conversion
   const validateTradeAmount = (amount: string | number | null | undefined, side: 'hit' | 'lift'): boolean => {
     console.log('validateTradeAmount called:', { amount, side, type: typeof amount });
 
+    // Handle empty/undefined/null values
     if (amount === undefined || amount === null || amount === '') {
       console.log('Trade amount is empty or null');
       setError('Please enter a trade amount');
       return false;
     }
 
-    // Directly parse the number
-    const numericAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;
-    console.log('Parsed numeric amount:', { numericAmount, type: typeof numericAmount });
+    // Direct number conversion
+    let numericAmount: number;
+    
+    if (typeof amount === 'string') {
+      // If it's a string, force conversion
+      numericAmount = parseInt(amount, 10);
+    } else if (typeof amount === 'number') {
+      // Already a number
+      numericAmount = amount;
+    } else {
+      // Handle unexpected types
+      numericAmount = 0;
+    }
+    
+    console.log('Directly converted to number:', { numericAmount, type: typeof numericAmount });
 
+    // Validate the numeric value
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      console.log('Invalid trade amount:', { numericAmount });
+      console.log('Invalid trade amount (NaN, zero, or negative):', { numericAmount });
       setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
       return false;
     }
@@ -299,7 +298,7 @@ export default function Trading() {
     return true;
   };
 
-  // Update the executeTrade function with better number handling
+  // Update the executeTrade function to do direct number conversion
   const executeTrade = async (marketPrice: MarketPrice, side: 'hit' | 'lift') => {
     console.log('executeTrade called:', { side, marketPrice });
     
@@ -311,38 +310,39 @@ export default function Trading() {
     // Clear any previous errors
     setError('');
 
-    // Get and parse the trade amount
+    // Get the trade amount
     const inputAmount = side === 'hit' ? tradeAmount.offer : tradeAmount.bid;
-    console.log('Trade input amount:', { side, inputAmount, type: typeof inputAmount });
+    console.log('Raw trade amount from state:', { inputAmount, type: typeof inputAmount });
     
-    // Directly parse to a number
-    const tradeAmountValue = typeof inputAmount === 'string' ? parseInt(inputAmount, 10) : inputAmount;
-    console.log('Parsed trade amount value:', { tradeAmountValue, type: typeof tradeAmountValue });
+    // CRITICAL: Convert to number directly
+    let tradeAmountValue: number;
+    
+    if (typeof inputAmount === 'string') {
+      // If it's a string, parse it
+      tradeAmountValue = inputAmount === '' ? 0 : parseInt(inputAmount, 10);
+    } else if (typeof inputAmount === 'number') {
+      // Already a number
+      tradeAmountValue = inputAmount;
+    } else {
+      // Fallback for null/undefined
+      tradeAmountValue = 0;
+    }
+    
+    console.log('Forced numeric conversion result:', { 
+      tradeAmountValue, 
+      type: typeof tradeAmountValue,
+      isNaN: isNaN(tradeAmountValue)
+    });
     
     const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
-    console.log('Available amount:', { availableAmount, type: typeof availableAmount });
-
-    console.log('Trade attempt details:', { 
-      side, 
-      inputAmount, 
-      inputAmountType: typeof inputAmount,
-      tradeAmountValue, 
-      tradeAmountValueType: typeof tradeAmountValue,
-      availableAmount,
-      availableAmountType: typeof availableAmount,
-      isInputValid: !(isNaN(tradeAmountValue) || tradeAmountValue <= 0),
-      isAmountAvailable: !isNaN(tradeAmountValue) && tradeAmountValue <= availableAmount
-    });
-
-    // Validate trade amount
-    if (isNaN(tradeAmountValue) || tradeAmountValue <= 0) {
-      console.log('Invalid trade amount detected:', { tradeAmountValue });
+    
+    // Validate the NUMERIC trade amount
+    if (tradeAmountValue <= 0) {
       setError(`Please enter a valid trade amount greater than 0. Current value: ${tradeAmountValue}`);
       return;
     }
 
     if (tradeAmountValue > availableAmount) {
-      console.log('Trade amount exceeds available amount:', { tradeAmountValue, availableAmount });
       setError(`Cannot trade ${tradeAmountValue} shares. Maximum available is ${availableAmount}`);
       return;
     }
@@ -519,18 +519,23 @@ export default function Trading() {
                     return;
                   }
                   
-                  const currentAmount = tradeAmount[selectedPrice.type];
-                  // Validate amount first
-                  if (!validateTradeAmount(currentAmount, selectedPrice.type === 'bid' ? 'hit' : 'lift')) {
+                  // Get the raw amount and validate it
+                  const rawAmount = tradeAmount[selectedPrice.type];
+                  console.log('Trade raw amount:', { rawAmount, type: typeof rawAmount });
+                  
+                  // Validate and convert to number
+                  if (!validateTradeAmount(rawAmount, selectedPrice.type === 'bid' ? 'hit' : 'lift')) {
                     return;
                   }
                   
+                  // Find the matching price
                   const matchingPrice = marketPrices.find(p => 
                     selectedPrice.type === 'bid' ? 
                       p.bidPrice === selectedPrice.price : 
                       p.offerPrice === selectedPrice.price
                   );
                   console.log('Found matching price:', matchingPrice);
+                  
                   if (matchingPrice) {
                     const tradeType = selectedPrice.type === 'bid' ? 'hit' : 'lift';
                     console.log('Executing trade:', { tradeType, matchingPrice });
@@ -1041,8 +1046,12 @@ export default function Trading() {
                           <button
                             onClick={() => {
                               console.log('Hit Bid button clicked:', { price, tradeAmount });
-                              // Validate amount first
-                              if (!validateTradeAmount(tradeAmount.bid, 'hit')) {
+                              
+                              // Get the raw bid amount and validate it
+                              const rawAmount = tradeAmount.bid;
+                              console.log('Raw bid amount:', { rawAmount, type: typeof rawAmount });
+                              
+                              if (!validateTradeAmount(rawAmount, 'hit')) {
                                 return;
                               }
                               
@@ -1092,8 +1101,12 @@ export default function Trading() {
                           <button
                             onClick={() => {
                               console.log('Lift Offer button clicked:', { price, tradeAmount });
-                              // Validate amount first
-                              if (!validateTradeAmount(tradeAmount.offer, 'lift')) {
+                              
+                              // Get the raw offer amount and validate it
+                              const rawAmount = tradeAmount.offer;
+                              console.log('Raw offer amount:', { rawAmount, type: typeof rawAmount });
+                              
+                              if (!validateTradeAmount(rawAmount, 'lift')) {
                                 return;
                               }
                               
