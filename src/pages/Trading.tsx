@@ -219,18 +219,32 @@ export default function Trading() {
 
   // Add a proper number parsing function
   const parseNumber = (value: string | number): number | null => {
+    console.log('parseNumber input:', { value, type: typeof value });
     if (typeof value === 'number') return value;
     if (value === '') return null;
     const parsed = Number(value);
+    console.log('parseNumber result:', { parsed, isNaN: isNaN(parsed) });
     return isNaN(parsed) ? null : parsed;
+  };
+
+  // Add this new function to ensure numeric inputs
+  const ensureNumericInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove any non-numeric characters except decimal point
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    // Update the input directly to ensure only numbers
+    e.target.value = value;
+    return value;
   };
 
   // Update the handleTradeAmountChange function
   const handleTradeAmountChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'bid' | 'offer') => {
-    const inputValue = e.target.value;
+    // Force numeric input
+    const inputValue = ensureNumericInput(e);
+    console.log('handleTradeAmountChange input (after cleaning):', { type, inputValue, valueType: typeof inputValue });
     
     // Allow empty input
     if (inputValue === '') {
+      console.log('Empty input detected, setting empty string');
       setTradeAmount(prev => ({ ...prev, [type]: '' }));
       setError('');
       return;
@@ -238,19 +252,44 @@ export default function Trading() {
 
     // Parse the number using our helper
     const parsedValue = parseNumber(inputValue);
+    console.log('After parsing:', { parsedValue, type: typeof parsedValue });
     
     // Validate the parsed value
     if (parsedValue === null || parsedValue <= 0) {
+      console.log('Invalid value detected:', { parsedValue });
       setError('Please enter a valid trade amount greater than 0');
       return;
     }
 
+    console.log('Setting valid trade amount:', { type, parsedValue });
     setTradeAmount(prev => ({ ...prev, [type]: parsedValue }));
     setError('');
   };
 
+  // Add a function to validate trade amount before attempting trade
+  const validateTradeAmount = (amount: string | number | null | undefined, side: 'hit' | 'lift'): boolean => {
+    console.log('validateTradeAmount called:', { amount, side, type: typeof amount });
+
+    if (amount === undefined || amount === null || amount === '') {
+      console.log('Trade amount is empty or null');
+      setError('Please enter a trade amount');
+      return false;
+    }
+
+    const parsedAmount = parseNumber(amount);
+    if (parsedAmount === null || parsedAmount <= 0) {
+      console.log('Invalid trade amount:', { parsedAmount });
+      setError(`Please enter a valid trade amount greater than 0. Current value: ${parsedAmount === null ? 'null' : parsedAmount}`);
+      return false;
+    }
+
+    return true;
+  };
+
   // Update the executeTrade function with better number handling
   const executeTrade = async (marketPrice: MarketPrice, side: 'hit' | 'lift') => {
+    console.log('executeTrade called:', { side, marketPrice });
+    
     if (!currentUser) {
       setError('You must be logged in to trade');
       return;
@@ -261,23 +300,41 @@ export default function Trading() {
 
     // Get and parse the trade amount
     const inputAmount = side === 'hit' ? tradeAmount.offer : tradeAmount.bid;
+    console.log('Trade input amount:', { side, inputAmount, type: typeof inputAmount });
+    
     const tradeAmountValue = parseNumber(inputAmount);
+    console.log('After parsing trade amount:', { tradeAmountValue, type: typeof tradeAmountValue });
+    
     const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
+    console.log('Available amount:', { availableAmount, type: typeof availableAmount });
 
-    console.log('Trade attempt:', { side, inputAmount, tradeAmountValue, availableAmount });
+    console.log('Trade attempt details:', { 
+      side, 
+      inputAmount, 
+      inputAmountType: typeof inputAmount,
+      tradeAmountValue, 
+      tradeAmountValueType: typeof tradeAmountValue,
+      availableAmount,
+      availableAmountType: typeof availableAmount,
+      isInputValid: !(tradeAmountValue === null || tradeAmountValue <= 0),
+      isAmountAvailable: tradeAmountValue !== null && tradeAmountValue <= availableAmount
+    });
 
     // Validate trade amount
     if (tradeAmountValue === null || tradeAmountValue <= 0) {
-      setError('Please enter a valid trade amount greater than 0');
+      console.log('Invalid trade amount detected:', { tradeAmountValue });
+      setError(`Please enter a valid trade amount greater than 0. Current value: ${tradeAmountValue === null ? 'null' : tradeAmountValue}`);
       return;
     }
 
     if (tradeAmountValue > availableAmount) {
+      console.log('Trade amount exceeds available amount:', { tradeAmountValue, availableAmount });
       setError(`Cannot trade ${tradeAmountValue} shares. Maximum available is ${availableAmount}`);
       return;
     }
 
     try {
+      console.log('Creating trade object');
       const trade = {
         symbol: marketPrice.symbol,
         price: side === 'hit' ? marketPrice.offerPrice : marketPrice.bidPrice,
@@ -289,22 +346,29 @@ export default function Trading() {
         status: 'executed' as const,
         timestamp: null
       };
+      console.log('Trade object created:', trade);
 
       // Handle partial trades
       const remainingAmount = availableAmount - tradeAmountValue;
+      console.log('Calculated remaining amount:', { remainingAmount });
+      
       if (remainingAmount > 0) {
+        console.log('Executing partial trade, updating market price');
         await tradingService.updateMarketPrice(marketPrice.id!, {
           ...marketPrice,
           [side === 'hit' ? 'offerAmount' : 'bidAmount']: remainingAmount
         });
       } else {
+        console.log('Executing full trade, market price completed');
         await tradingService.updateMarketPrice(marketPrice.id!, {
           ...marketPrice,
           status: 'executed'
         });
       }
 
+      console.log('Executing trade with tradingService');
       await tradingService.executeTrade(trade);
+      console.log('Trade executed successfully');
       setError('');
       setSelectedPrice({ type: null, price: null });
       setTradeAmount({ bid: '', offer: '' });
@@ -437,13 +501,30 @@ export default function Trading() {
               />
               <button
                 onClick={() => {
+                  console.log('Trade box button clicked:', { selectedPrice, tradeAmount });
+                  if (!selectedPrice.type) {
+                    console.error('No price type selected');
+                    return;
+                  }
+                  
+                  const currentAmount = tradeAmount[selectedPrice.type];
+                  // Validate amount first
+                  if (!validateTradeAmount(currentAmount, selectedPrice.type === 'bid' ? 'hit' : 'lift')) {
+                    return;
+                  }
+                  
                   const matchingPrice = marketPrices.find(p => 
                     selectedPrice.type === 'bid' ? 
                       p.bidPrice === selectedPrice.price : 
                       p.offerPrice === selectedPrice.price
                   );
+                  console.log('Found matching price:', matchingPrice);
                   if (matchingPrice) {
-                    executeTrade(matchingPrice, selectedPrice.type === 'bid' ? 'hit' : 'lift');
+                    const tradeType = selectedPrice.type === 'bid' ? 'hit' : 'lift';
+                    console.log('Executing trade:', { tradeType, matchingPrice });
+                    executeTrade(matchingPrice, tradeType);
+                  } else {
+                    console.error('No matching price found!');
                   }
                 }}
                 disabled={!tradeAmount[selectedPrice.type]}
@@ -468,6 +549,15 @@ export default function Trading() {
       {error && (
         <div style={{ backgroundColor: "#FEE2E2", borderLeft: "4px solid #EF4444", color: "#B91C1C", padding: "1rem", marginBottom: "1.5rem", borderRadius: "0.375rem" }}>
           <p>{error}</p>
+          {process.env.NODE_ENV !== 'production' && (
+            <details style={{ marginTop: "0.5rem", fontSize: "0.875rem" }}>
+              <summary>Debug Info</summary>
+              <pre style={{ marginTop: "0.5rem", whiteSpace: "pre-wrap", fontSize: "0.75rem" }}>
+                Selected Price: {JSON.stringify(selectedPrice, null, 2)}
+                Trade Amount: {JSON.stringify(tradeAmount, null, 2)}
+              </pre>
+            </details>
+          )}
         </div>
       )}
       
@@ -941,8 +1031,17 @@ export default function Trading() {
                           />
                           <button
                             onClick={() => {
+                              console.log('Hit Bid button clicked:', { price, tradeAmount });
+                              // Validate amount first
+                              if (!validateTradeAmount(tradeAmount.bid, 'hit')) {
+                                return;
+                              }
+                              
                               if (price.status === 'active') {
+                                console.log('Price is active, executing hit trade');
                                 executeTrade(price, 'hit');
+                              } else {
+                                console.log('Price is not active, cannot trade');
                               }
                             }}
                             disabled={!tradeAmount.bid || price.status !== 'active'}
@@ -986,8 +1085,17 @@ export default function Trading() {
                           />
                           <button
                             onClick={() => {
+                              console.log('Lift Offer button clicked:', { price, tradeAmount });
+                              // Validate amount first
+                              if (!validateTradeAmount(tradeAmount.offer, 'lift')) {
+                                return;
+                              }
+                              
                               if (price.status === 'active') {
+                                console.log('Price is active, executing lift trade');
                                 executeTrade(price, 'lift');
+                              } else {
+                                console.log('Price is not active, cannot trade');
                               }
                             }}
                             disabled={!tradeAmount.offer || price.status !== 'active'}
