@@ -203,6 +203,33 @@ export default function Trading() {
     }
   };
 
+  // Add a function to pull the current price
+  const handlePullPrice = async () => {
+    if (!currentQuote) {
+      setError('No active quote to pull');
+      return;
+    }
+    
+    try {
+      setSavingInProgress(true);
+      await tradingService.cancelMarketPrice(currentQuote);
+      
+      setUserMarketPrices(prevPrices => 
+        prevPrices.map(price => 
+          price.id === currentQuote ? { ...price, status: 'canceled' } : price
+        )
+      );
+      
+      handleNewQuote();
+      setError('');
+    } catch (err) {
+      console.error('Error pulling price:', err);
+      setError('Failed to pull price');
+    } finally {
+      setSavingInProgress(false);
+    }
+  };
+
   // Add this new function to handle box clicks
   const handlePriceBoxClick = (type: 'bid' | 'offer', price: number) => {
     if (!currentUser) return;
@@ -294,7 +321,7 @@ export default function Trading() {
     executeTrade(matchingPrice, tradeType, numericAmount);
   };
 
-  // Update the executeTrade function to accept the validated amount
+  // Update the executeTrade function to properly handle partial trades
   const executeTrade = async (
     marketPrice: MarketPrice, 
     side: 'hit' | 'lift',
@@ -349,16 +376,38 @@ export default function Trading() {
       
       if (remainingAmount > 0) {
         console.log('Executing partial trade, updating market price');
-        await tradingService.updateMarketPrice(marketPrice.id!, {
+        // Create a copy of the market price with the updated amount
+        const updatedMarketPrice = {
           ...marketPrice,
           [side === 'hit' ? 'offerAmount' : 'bidAmount']: remainingAmount
-        });
+        };
+        
+        // Update in Firestore
+        await tradingService.updateMarketPrice(marketPrice.id!, updatedMarketPrice);
+        
+        // Update in local state to show the change immediately
+        setMarketPrices(prevPrices => 
+          prevPrices.map(price => 
+            price.id === marketPrice.id ? updatedMarketPrice : price
+          )
+        );
       } else {
         console.log('Executing full trade, market price completed');
-        await tradingService.updateMarketPrice(marketPrice.id!, {
+        // Create a copy of the market price with executed status
+        const completedMarketPrice = {
           ...marketPrice,
-          status: 'executed'
-        });
+          status: 'executed' as const
+        };
+        
+        // Update in Firestore
+        await tradingService.updateMarketPrice(marketPrice.id!, completedMarketPrice);
+        
+        // Update in local state
+        setMarketPrices(prevPrices => 
+          prevPrices.map(price => 
+            price.id === marketPrice.id ? completedMarketPrice : price
+          )
+        );
       }
 
       console.log('Executing trade with tradingService');
@@ -820,7 +869,7 @@ export default function Trading() {
           </div>
 
           {/* Submit Button */}
-          <div style={{ marginTop: "2rem", textAlign: "center" }}>
+          <div style={{ marginTop: "2rem", textAlign: "center", display: "flex", justifyContent: "center", gap: "1rem" }}>
             <button
               type="button"
               onClick={handleSubmit}
@@ -838,6 +887,26 @@ export default function Trading() {
             >
               {savingInProgress ? "Saving..." : currentQuote ? "Update Quote" : "Submit Quote"}
             </button>
+            
+            {currentQuote && (
+              <button
+                type="button"
+                onClick={handlePullPrice}
+                disabled={savingInProgress}
+                style={{ 
+                  padding: "0.75rem 2rem",
+                  backgroundColor: "#DC2626",
+                  color: "white",
+                  borderRadius: "0.375rem",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  cursor: savingInProgress ? "not-allowed" : "pointer",
+                  opacity: savingInProgress ? 0.7 : 1
+                }}
+              >
+                Pull Price
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1170,6 +1239,9 @@ export default function Trading() {
                   const isUserSeller = currentUser && trade.sellerId === currentUser.uid;
                   const userRole = isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
                   
+                  // Ensure trade amount is a valid number
+                  const tradeAmount = typeof trade.amount === 'number' ? trade.amount : 0;
+                  
                   return (
                     <tr key={trade.id} style={{ 
                       backgroundColor: (isUserBuyer || isUserSeller) ? "#EFF6FF" : "white",
@@ -1179,8 +1251,8 @@ export default function Trading() {
                         {trade.timestamp?.toDate().toLocaleTimeString() || 'Just now'}
                       </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{trade.symbol}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: trade.side === 'hit' ? "#DC2626" : "#059669" }}>{trade.price.toFixed(0)}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{trade.amount.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: trade.side === 'hit' ? "#DC2626" : "#059669" }}>{trade.price}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{tradeAmount}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
                         {trade.side === 'hit' ? 'Hit Offer' : 'Lift Bid'}
                       </td>
