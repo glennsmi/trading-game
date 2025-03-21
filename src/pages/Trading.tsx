@@ -152,15 +152,15 @@ export default function Trading() {
           </div>
           
           {/* Bid and Offer Grid - Force side by side */}
-          <div className="flex flex-col md:flex-row justify-center gap-8 md:gap-16">
+          <div className="flex flex-row justify-center gap-8 md:gap-16">
             {/* Bid Side */}
             <div className="flex flex-col items-center">
               <h3 className="text-xl font-bold text-green-800 mb-4">Bid (Buy)</h3>
               
-              {/* Bid Price - Large Square Box */}
-              <div className="w-64 h-64 mb-4">
-                <div className="w-full h-full border-8 border-green-500 rounded-lg flex flex-col items-center justify-center bg-green-50 shadow-xl">
-                  <label htmlFor="bidPrice" className="block font-medium text-gray-700 mb-2 text-center">
+              {/* Bid Price - Larger Font */}
+              <div className="mb-4">
+                <div className="w-full border-4 border-green-500 rounded-lg flex flex-col items-center justify-center bg-green-50 shadow-lg p-4">
+                  <label htmlFor="bidPrice" className="block font-medium text-gray-700 mb-1 text-center">
                     Price
                   </label>
                   <input
@@ -169,7 +169,7 @@ export default function Trading() {
                     name="bidPrice"
                     value={formData.bidPrice || ''}
                     onChange={handleInputChange}
-                    className="w-3/4 p-2 text-6xl font-bold text-green-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
+                    className="w-full p-2 text-5xl font-bold text-green-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
                     min="0"
                     placeholder="0"
                     required
@@ -178,7 +178,7 @@ export default function Trading() {
               </div>
               
               {/* Bid Amount - Below Price Box */}
-              <div className="w-64">
+              <div className="w-full">
                 <label htmlFor="bidAmount" className="block font-medium text-gray-700 mb-1 text-center">
                   Amount
                 </label>
@@ -188,7 +188,7 @@ export default function Trading() {
                   name="bidAmount"
                   value={formData.bidAmount || ''}
                   onChange={handleInputChange}
-                  className="w-full p-3 text-xl border-2 border-green-300 rounded-md bg-white text-center focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full p-2 text-base border-2 border-green-300 rounded-md bg-white text-center focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   min="0"
                   placeholder="0"
                   required
@@ -200,10 +200,10 @@ export default function Trading() {
             <div className="flex flex-col items-center">
               <h3 className="text-xl font-bold text-red-800 mb-4">Offer (Sell)</h3>
               
-              {/* Offer Price - Large Square Box */}
-              <div className="w-64 h-64 mb-4">
-                <div className="w-full h-full border-8 border-red-500 rounded-lg flex flex-col items-center justify-center bg-red-50 shadow-xl">
-                  <label htmlFor="offerPrice" className="block font-medium text-gray-700 mb-2 text-center">
+              {/* Offer Price - Larger Font */}
+              <div className="mb-4">
+                <div className="w-full border-4 border-red-500 rounded-lg flex flex-col items-center justify-center bg-red-50 shadow-lg p-4">
+                  <label htmlFor="offerPrice" className="block font-medium text-gray-700 mb-1 text-center">
                     Price
                   </label>
                   <input
@@ -212,7 +212,7 @@ export default function Trading() {
                     name="offerPrice"
                     value={formData.offerPrice || ''}
                     onChange={handleInputChange}
-                    className="w-3/4 p-2 text-6xl font-bold text-red-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
+                    className="w-full p-2 text-5xl font-bold text-red-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
                     min="0"
                     placeholder="0"
                     required
@@ -221,7 +221,7 @@ export default function Trading() {
               </div>
               
               {/* Offer Amount - Below Price Box */}
-              <div className="w-64">
+              <div className="w-full">
                 <label htmlFor="offerAmount" className="block font-medium text-gray-700 mb-1 text-center">
                   Amount
                 </label>
@@ -231,7 +231,7 @@ export default function Trading() {
                   name="offerAmount"
                   value={formData.offerAmount || ''}
                   onChange={handleInputChange}
-                  className="w-full p-3 text-xl border-2 border-red-300 rounded-md bg-white text-center focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className="w-full p-2 text-base border-2 border-red-300 rounded-md bg-white text-center focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   min="0"
                   placeholder="0"
                   required
