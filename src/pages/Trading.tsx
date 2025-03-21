@@ -229,11 +229,22 @@ export default function Trading() {
 
   // Add this new function to ensure numeric inputs
   const ensureNumericInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Remove any non-numeric characters except decimal point
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    // Update the input directly to ensure only numbers
-    e.target.value = value;
-    return value;
+    // Preserve the original input value
+    const originalValue = e.target.value;
+    console.log('Original input value:', { originalValue, type: typeof originalValue });
+    
+    // Only allow digits
+    if (/^[0-9]+$/.test(originalValue) || originalValue === '') {
+      return originalValue;
+    }
+    
+    // If the value contains non-digits, clean it
+    const cleanedValue = originalValue.replace(/[^0-9]/g, '');
+    console.log('Cleaned input value:', { cleanedValue, type: typeof cleanedValue });
+    
+    // Set the cleaned value back to the input field
+    e.target.value = cleanedValue;
+    return cleanedValue;
   };
 
   // Update the handleTradeAmountChange function
@@ -251,18 +262,17 @@ export default function Trading() {
     }
 
     // Parse the number using our helper
-    const parsedValue = parseNumber(inputValue);
-    console.log('After parsing:', { parsedValue, type: typeof parsedValue });
+    const numericValue = parseInt(inputValue, 10);
+    console.log('Parsed integer value:', { numericValue, type: typeof numericValue });
     
-    // Validate the parsed value
-    if (parsedValue === null || parsedValue <= 0) {
-      console.log('Invalid value detected:', { parsedValue });
+    if (isNaN(numericValue) || numericValue <= 0) {
+      console.log('Invalid value detected:', { numericValue });
       setError('Please enter a valid trade amount greater than 0');
       return;
     }
 
-    console.log('Setting valid trade amount:', { type, parsedValue });
-    setTradeAmount(prev => ({ ...prev, [type]: parsedValue }));
+    console.log('Setting valid trade amount:', { type, numericValue });
+    setTradeAmount(prev => ({ ...prev, [type]: numericValue }));
     setError('');
   };
 
@@ -276,10 +286,13 @@ export default function Trading() {
       return false;
     }
 
-    const parsedAmount = parseNumber(amount);
-    if (parsedAmount === null || parsedAmount <= 0) {
-      console.log('Invalid trade amount:', { parsedAmount });
-      setError(`Please enter a valid trade amount greater than 0. Current value: ${parsedAmount === null ? 'null' : parsedAmount}`);
+    // Directly parse the number
+    const numericAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;
+    console.log('Parsed numeric amount:', { numericAmount, type: typeof numericAmount });
+
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      console.log('Invalid trade amount:', { numericAmount });
+      setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
       return false;
     }
 
@@ -302,8 +315,9 @@ export default function Trading() {
     const inputAmount = side === 'hit' ? tradeAmount.offer : tradeAmount.bid;
     console.log('Trade input amount:', { side, inputAmount, type: typeof inputAmount });
     
-    const tradeAmountValue = parseNumber(inputAmount);
-    console.log('After parsing trade amount:', { tradeAmountValue, type: typeof tradeAmountValue });
+    // Directly parse to a number
+    const tradeAmountValue = typeof inputAmount === 'string' ? parseInt(inputAmount, 10) : inputAmount;
+    console.log('Parsed trade amount value:', { tradeAmountValue, type: typeof tradeAmountValue });
     
     const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
     console.log('Available amount:', { availableAmount, type: typeof availableAmount });
@@ -316,14 +330,14 @@ export default function Trading() {
       tradeAmountValueType: typeof tradeAmountValue,
       availableAmount,
       availableAmountType: typeof availableAmount,
-      isInputValid: !(tradeAmountValue === null || tradeAmountValue <= 0),
-      isAmountAvailable: tradeAmountValue !== null && tradeAmountValue <= availableAmount
+      isInputValid: !(isNaN(tradeAmountValue) || tradeAmountValue <= 0),
+      isAmountAvailable: !isNaN(tradeAmountValue) && tradeAmountValue <= availableAmount
     });
 
     // Validate trade amount
-    if (tradeAmountValue === null || tradeAmountValue <= 0) {
+    if (isNaN(tradeAmountValue) || tradeAmountValue <= 0) {
       console.log('Invalid trade amount detected:', { tradeAmountValue });
-      setError(`Please enter a valid trade amount greater than 0. Current value: ${tradeAmountValue === null ? 'null' : tradeAmountValue}`);
+      setError(`Please enter a valid trade amount greater than 0. Current value: ${tradeAmountValue}`);
       return;
     }
 
@@ -483,11 +497,9 @@ export default function Trading() {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
               <input
-                type="number"
+                type="tel"
                 value={tradeAmount[selectedPrice.type] || ''}
                 onChange={(e) => handleTradeAmountChange(e, selectedPrice.type!)}
-                min="1"
-                step="1"
                 placeholder="Enter amount"
                 style={{
                   width: "150px",
@@ -667,7 +679,7 @@ export default function Trading() {
                 </label>
                 <input
                   id="bidPrice"
-                  type="number"
+                  type="tel"
                   name="bidPrice"
                   value={formData.bidPrice || ''}
                   onChange={handleInputChange}
@@ -696,7 +708,7 @@ export default function Trading() {
                 </label>
                 <input
                   id="bidAmount"
-                  type="number"
+                  type="tel"
                   name="bidAmount"
                   value={formData.bidAmount || 10}
                   onChange={handleInputChange}
@@ -765,7 +777,7 @@ export default function Trading() {
                 </label>
                 <input
                   id="offerPrice"
-                  type="number"
+                  type="tel"
                   name="offerPrice"
                   value={formData.offerPrice || ''}
                   onChange={handleInputChange}
@@ -794,7 +806,7 @@ export default function Trading() {
                 </label>
                 <input
                   id="offerAmount"
-                  type="number"
+                  type="tel"
                   name="offerAmount"
                   value={formData.offerAmount || 10}
                   onChange={handleInputChange}
@@ -1013,12 +1025,9 @@ export default function Trading() {
                       {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
                         <>
                           <input
-                            type="number"
+                            type="tel"
                             value={tradeAmount.bid || ''}
                             onChange={(e) => handleTradeAmountChange(e, 'bid')}
-                            min="1"
-                            step="1"
-                            max={price.bidAmount}
                             placeholder="Amount"
                             style={{
                               width: "80px",
@@ -1067,12 +1076,9 @@ export default function Trading() {
                       {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
                         <>
                           <input
-                            type="number"
+                            type="tel"
                             value={tradeAmount.offer || ''}
                             onChange={(e) => handleTradeAmountChange(e, 'offer')}
-                            min="1"
-                            step="1"
-                            max={price.offerAmount}
                             placeholder="Amount"
                             style={{
                               width: "80px",
