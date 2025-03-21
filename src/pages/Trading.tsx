@@ -1419,6 +1419,10 @@ export default function Trading() {
                   // Calculate net position and profit
                   let netPosition = 0;
                   let netProfit = 0;
+                  let totalBuyValue = 0;
+                  let totalBuyQuantity = 0;
+                  let totalSellValue = 0;
+                  let totalSellQuantity = 0;
                   
                   trades.forEach(trade => {
                     if (!currentUser) return;
@@ -1426,20 +1430,57 @@ export default function Trading() {
                     const isUserBuyer = trade.buyerId === currentUser.uid;
                     const isUserSeller = trade.sellerId === currentUser.uid;
                     const tradeAmount = typeof trade.amount === 'number' ? trade.amount : 0;
+                    const tradeValue = trade.price * tradeAmount;
                     
                     // Only count trades where the user was involved
                     if (isUserBuyer || isUserSeller) {
                       // For position: Add when buying, subtract when selling
                       if (isUserBuyer) {
                         netPosition += tradeAmount;
-                        netProfit -= trade.price * tradeAmount; // Cash outflow when buying
+                        totalBuyValue += tradeValue;
+                        totalBuyQuantity += tradeAmount;
                       }
                       if (isUserSeller) {
                         netPosition -= tradeAmount;
-                        netProfit += trade.price * tradeAmount; // Cash inflow when selling
+                        totalSellValue += tradeValue;
+                        totalSellQuantity += tradeAmount;
                       }
                     }
                   });
+                  
+                  // Calculate average entry prices
+                  const avgBuyPrice = totalBuyQuantity > 0 ? (totalBuyValue / totalBuyQuantity).toFixed(2) : 0;
+                  const avgSellPrice = totalSellQuantity > 0 ? (totalSellValue / totalSellQuantity).toFixed(2) : 0;
+                  
+                  // Calculate average position entry price based on if we're net long or short
+                  const avgEntryPrice = netPosition > 0 
+                    ? avgBuyPrice 
+                    : netPosition < 0 
+                      ? avgSellPrice 
+                      : 0;
+                  
+                  // Calculate realized P&L - this is what happens when you buy then sell
+                  // If you buy and sell the same quantity, your profit is the difference in total value
+                  const minQuantity = Math.min(totalBuyQuantity, totalSellQuantity);
+                  const realizedPnL = minQuantity > 0 
+                    ? (Number(avgSellPrice) - Number(avgBuyPrice)) * minQuantity 
+                    : 0;
+                  
+                  // Calculate unrealized P&L - this is the potential profit on your current position
+                  // For a long position, we use the latest sell price as a proxy for current market price
+                  // For a short position, we use the latest buy price as a proxy
+                  const latestMarketPrice = netPosition > 0 
+                    ? (totalSellQuantity > 0 ? Number(avgSellPrice) : Number(avgBuyPrice)) 
+                    : (totalBuyQuantity > 0 ? Number(avgBuyPrice) : Number(avgSellPrice));
+                  
+                  const unrealizedPnL = netPosition !== 0 
+                    ? netPosition > 0 
+                      ? (latestMarketPrice - Number(avgBuyPrice)) * netPosition 
+                      : (Number(avgSellPrice) - latestMarketPrice) * Math.abs(netPosition)
+                    : 0;
+                  
+                  // Total P&L is realized + unrealized
+                  netProfit = realizedPnL + (netPosition !== 0 ? 0 : unrealizedPnL);
                   
                   return (
                     <>
@@ -1453,6 +1494,33 @@ export default function Trading() {
                           color: netPosition === 0 ? "#6B7280" : netPosition > 0 ? "#059669" : "#DC2626" 
                         }}>
                           {netPosition > 0 ? "+" : ""}{netPosition.toLocaleString()}
+                        </div>
+                        {netPosition !== 0 && (
+                          <div style={{ fontSize: "0.875rem", color: "#6B7280", marginTop: "0.25rem" }}>
+                            Avg Price: {avgEntryPrice}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1, textAlign: "center", padding: "0.5rem", borderRight: "1px solid #E5E7EB" }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: "500", color: "#6B7280", marginBottom: "0.25rem" }}>
+                          AVG BUY PRICE
+                        </div>
+                        <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#059669" }}>
+                          {totalBuyQuantity > 0 ? avgBuyPrice : "-"}
+                        </div>
+                        <div style={{ fontSize: "0.875rem", color: "#6B7280", marginTop: "0.25rem" }}>
+                          Qty: {totalBuyQuantity.toLocaleString()}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, textAlign: "center", padding: "0.5rem", borderRight: "1px solid #E5E7EB" }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: "500", color: "#6B7280", marginBottom: "0.25rem" }}>
+                          AVG SELL PRICE
+                        </div>
+                        <div style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#DC2626" }}>
+                          {totalSellQuantity > 0 ? avgSellPrice : "-"}
+                        </div>
+                        <div style={{ fontSize: "0.875rem", color: "#6B7280", marginTop: "0.25rem" }}>
+                          Qty: {totalSellQuantity.toLocaleString()}
                         </div>
                       </div>
                       <div style={{ flex: 1, textAlign: "center", padding: "0.5rem" }}>
