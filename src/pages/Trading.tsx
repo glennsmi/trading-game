@@ -49,7 +49,7 @@ export default function Trading() {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === 'symbol' ? value : parseFloat(value) || 0
+      [name]: name === 'symbol' ? value : parseInt(value) || 0
     });
   };
 
@@ -154,31 +154,32 @@ export default function Trading() {
           {/* Bid and Offer Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             {/* Bid Side */}
-            <div className="bg-green-50 rounded-lg p-6 border-2 border-green-200 shadow-sm">
+            <div className="flex flex-col items-center">
               <h3 className="text-xl font-medium text-green-800 mb-4">Bid (Buy)</h3>
               
-              {/* Bid Price - Large Box */}
-              <div className="mb-4">
-                <label htmlFor="bidPrice" className="block font-medium text-gray-700 mb-1">
-                  Price
-                </label>
-                <input
-                  id="bidPrice"
-                  type="number"
-                  name="bidPrice"
-                  value={formData.bidPrice || ''}
-                  onChange={handleInputChange}
-                  className="w-full p-4 text-3xl font-bold text-green-700 border-2 border-green-300 rounded-md bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  required
-                />
+              {/* Bid Price - Large Square Box */}
+              <div className="mb-6 w-full">
+                <div className="aspect-square max-w-[250px] mx-auto border-4 border-green-500 rounded-lg flex flex-col items-center justify-center bg-green-50 shadow-lg">
+                  <label htmlFor="bidPrice" className="block font-medium text-gray-700 mb-1 text-center">
+                    Price
+                  </label>
+                  <input
+                    id="bidPrice"
+                    type="number"
+                    name="bidPrice"
+                    value={formData.bidPrice || ''}
+                    onChange={handleInputChange}
+                    className="w-4/5 p-2 text-5xl font-bold text-green-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
+                    min="0"
+                    placeholder="0"
+                    required
+                  />
+                </div>
               </div>
               
-              {/* Bid Amount - Smaller Box Below */}
-              <div>
-                <label htmlFor="bidAmount" className="block font-medium text-gray-700 mb-1">
+              {/* Bid Amount - Below Price Box */}
+              <div className="w-full max-w-[250px] mx-auto">
+                <label htmlFor="bidAmount" className="block font-medium text-gray-700 mb-1 text-center">
                   Amount
                 </label>
                 <input
@@ -187,41 +188,41 @@ export default function Trading() {
                   name="bidAmount"
                   value={formData.bidAmount || ''}
                   onChange={handleInputChange}
-                  className="w-full p-2 text-lg border-2 border-green-200 rounded-md bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  step="0.01"
+                  className="w-full p-2 text-xl border-2 border-green-300 rounded-md bg-white text-center focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   min="0"
-                  placeholder="0.00"
+                  placeholder="0"
                   required
                 />
               </div>
             </div>
             
             {/* Offer Side */}
-            <div className="bg-red-50 rounded-lg p-6 border-2 border-red-200 shadow-sm">
+            <div className="flex flex-col items-center">
               <h3 className="text-xl font-medium text-red-800 mb-4">Offer (Sell)</h3>
               
-              {/* Offer Price - Large Box */}
-              <div className="mb-4">
-                <label htmlFor="offerPrice" className="block font-medium text-gray-700 mb-1">
-                  Price
-                </label>
-                <input
-                  id="offerPrice"
-                  type="number"
-                  name="offerPrice"
-                  value={formData.offerPrice || ''}
-                  onChange={handleInputChange}
-                  className="w-full p-4 text-3xl font-bold text-red-700 border-2 border-red-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  required
-                />
+              {/* Offer Price - Large Square Box */}
+              <div className="mb-6 w-full">
+                <div className="aspect-square max-w-[250px] mx-auto border-4 border-red-500 rounded-lg flex flex-col items-center justify-center bg-red-50 shadow-lg">
+                  <label htmlFor="offerPrice" className="block font-medium text-gray-700 mb-1 text-center">
+                    Price
+                  </label>
+                  <input
+                    id="offerPrice"
+                    type="number"
+                    name="offerPrice"
+                    value={formData.offerPrice || ''}
+                    onChange={handleInputChange}
+                    className="w-4/5 p-2 text-5xl font-bold text-red-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
+                    min="0"
+                    placeholder="0"
+                    required
+                  />
+                </div>
               </div>
               
-              {/* Offer Amount - Smaller Box Below */}
-              <div>
-                <label htmlFor="offerAmount" className="block font-medium text-gray-700 mb-1">
+              {/* Offer Amount - Below Price Box */}
+              <div className="w-full max-w-[250px] mx-auto">
+                <label htmlFor="offerAmount" className="block font-medium text-gray-700 mb-1 text-center">
                   Amount
                 </label>
                 <input
@@ -230,10 +231,9 @@ export default function Trading() {
                   name="offerAmount"
                   value={formData.offerAmount || ''}
                   onChange={handleInputChange}
-                  className="w-full p-2 text-lg border-2 border-red-200 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  step="0.01"
+                  className="w-full p-2 text-xl border-2 border-red-300 rounded-md bg-white text-center focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   min="0"
-                  placeholder="0.00"
+                  placeholder="0"
                   required
                 />
               </div>
@@ -277,10 +277,10 @@ export default function Trading() {
                 {marketPrices.map((price) => (
                   <tr key={price.id} className={price.userId === currentUser?.uid ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{price.symbol}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700">{price.bidPrice.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.bidAmount.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-700">{price.offerPrice.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.offerAmount.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-700">{price.bidPrice.toFixed(0)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.bidAmount.toFixed(0)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-700">{price.offerPrice.toFixed(0)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.offerAmount.toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -314,8 +314,8 @@ export default function Trading() {
                   {userMarketPrices.map((price) => (
                     <tr key={price.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{price.symbol}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700">{price.bidPrice.toFixed(2)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-700">{price.offerPrice.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-700">{price.bidPrice.toFixed(0)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-700">{price.offerPrice.toFixed(0)}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                           ${price.status === 'active' ? 'bg-green-100 text-green-800' : 
