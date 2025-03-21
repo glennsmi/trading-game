@@ -7,21 +7,6 @@ import Sidebar from './components/Sidebar'
 import Trading from './pages/Trading'
 import './styles/Layout.css'
 
-// Protected route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentUser, loading } = useAuth();
-  
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-  
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
 // Dashboard component (placeholder)
 const Dashboard = () => (
   <div className="dashboard-content">

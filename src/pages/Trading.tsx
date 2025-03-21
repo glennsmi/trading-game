@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { tradingService } from '../services/tradingService';
 import { MarketPrice, MarketPriceFormData, Trade } from '../types/trading';
@@ -289,33 +289,6 @@ export default function Trading() {
     setError('');
   };
 
-  // Simplified validateTradeAmount function
-  const validateTradeAmount = (amount: string | number | null | undefined, side: 'hit' | 'lift'): boolean => {
-    console.log('validateTradeAmount called:', { amount, side, type: typeof amount });
-
-    // Handle empty/undefined/null values
-    if (amount === undefined || amount === null || amount === '') {
-      console.log('Trade amount is empty or null');
-      setError('Please enter a trade amount');
-      return false;
-    }
-
-    // Direct number conversion
-    const numericAmount = typeof amount === 'number' ? amount : parseInt(String(amount), 10);
-    console.log('Directly converted to number:', { numericAmount, type: typeof numericAmount });
-
-    // Validate the numeric value
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      console.log('Invalid trade amount (NaN, zero, or negative):', { numericAmount });
-      setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
-      return false;
-    }
-
-    // If we got here, the amount is valid
-    console.log('Trade amount is valid:', { numericAmount });
-    return true;
-  };
-
   // Update the getTradeTypeDescriptive function to be more specific about the market maker perspective
   const getTradeTypeDescriptive = (side: 'hit' | 'lift', isMarketMaker: boolean): string => {
     if (isMarketMaker) {
@@ -478,6 +451,13 @@ export default function Trading() {
   const bestOfferAmount = marketPrices
     .find(price => price.status === 'active' && price.offerPrice === bestOffer)?.offerAmount || 0;
 
+  // Determine if current user is the maker of the best bid or offer
+  const isUserBestBidMaker = currentUser && marketPrices
+    .find(price => price.status === 'active' && price.bidPrice === bestBid)?.userId === currentUser.uid;
+
+  const isUserBestOfferMaker = currentUser && marketPrices
+    .find(price => price.status === 'active' && price.offerPrice === bestOffer)?.userId === currentUser.uid;
+
   // Add function to check if a price has been partially filled
   const hasBeenPartiallyFilled = (price: MarketPrice): boolean => {
     // If the price is not active, it's not relevant
@@ -496,14 +476,6 @@ export default function Trading() {
       }
     }
     return false;
-  };
-
-  // Add function to format the amount display with potential "partial" indicator
-  const formatAmountDisplay = (price: MarketPrice, side: 'bid' | 'offer'): string => {
-    const amount = side === 'bid' ? price.bidAmount : price.offerAmount;
-    if (amount <= 0) return '-';
-    
-    return amount.toFixed(0);
   };
 
   return (
@@ -527,15 +499,19 @@ export default function Trading() {
         }}>
           {/* Best Bid Box */}
           <div 
-            onClick={() => bestBid > 0 && handlePriceBoxClick('bid', bestBid)}
+            onClick={() => bestBid > 0 && !isUserBestBidMaker && handlePriceBoxClick('bid', bestBid)}
             style={{
               textAlign: "center",
               padding: "1rem",
-              backgroundColor: selectedPrice.type === 'bid' ? "#D1FAE5" : "#ECFDF5",
+              backgroundColor: isUserBestBidMaker ? "#ECFDF5" : selectedPrice.type === 'bid' ? "#D1FAE5" : "#ECFDF5",
               borderRadius: "0.5rem",
               minWidth: "200px",
-              cursor: bestBid > 0 ? "pointer" : "default",
-              border: selectedPrice.type === 'bid' ? "2px solid #059669" : "none",
+              cursor: bestBid > 0 && !isUserBestBidMaker ? "pointer" : "default",
+              border: isUserBestBidMaker 
+                ? "2px dashed #059669" 
+                : selectedPrice.type === 'bid' 
+                  ? "2px solid #059669" 
+                  : "none",
               transition: "all 0.2s"
             }}
           >
@@ -543,24 +519,41 @@ export default function Trading() {
               {bestBid > 0 ? bestBid.toFixed(0) : '-'}
             </div>
             <div style={{ fontSize: "1rem", color: "#065F46", marginTop: "0.5rem" }}>
-              Best Bid
+              {isUserBestBidMaker ? "Your Best Bid" : "Best Bid"}
             </div>
             <div style={{ fontSize: "0.875rem", color: "#059669", marginTop: "0.25rem" }}>
               Amount: {bestBidAmount > 0 ? bestBidAmount.toFixed(0) : '-'}
             </div>
+            {isUserBestBidMaker && (
+              <div style={{ 
+                fontSize: "0.875rem", 
+                color: "#059669", 
+                marginTop: "0.5rem",
+                padding: "0.25rem 0.5rem",
+                backgroundColor: "#D1FAE5",
+                borderRadius: "0.25rem",
+                display: "inline-block"
+              }}>
+                You are the market maker
+              </div>
+            )}
           </div>
 
           {/* Best Offer Box */}
           <div 
-            onClick={() => bestOffer > 0 && handlePriceBoxClick('offer', bestOffer)}
+            onClick={() => bestOffer > 0 && !isUserBestOfferMaker && handlePriceBoxClick('offer', bestOffer)}
             style={{
               textAlign: "center",
               padding: "1rem",
-              backgroundColor: selectedPrice.type === 'offer' ? "#FEE2E2" : "#FEF2F2",
+              backgroundColor: isUserBestOfferMaker ? "#FEF2F2" : selectedPrice.type === 'offer' ? "#FEE2E2" : "#FEF2F2",
               borderRadius: "0.5rem",
               minWidth: "200px",
-              cursor: bestOffer > 0 ? "pointer" : "default",
-              border: selectedPrice.type === 'offer' ? "2px solid #DC2626" : "none",
+              cursor: bestOffer > 0 && !isUserBestOfferMaker ? "pointer" : "default",
+              border: isUserBestOfferMaker 
+                ? "2px dashed #DC2626" 
+                : selectedPrice.type === 'offer' 
+                  ? "2px solid #DC2626" 
+                  : "none",
               transition: "all 0.2s"
             }}
           >
@@ -568,11 +561,24 @@ export default function Trading() {
               {bestOffer > 0 ? bestOffer.toFixed(0) : '-'}
             </div>
             <div style={{ fontSize: "1rem", color: "#991B1B", marginTop: "0.5rem" }}>
-              Best Offer
+              {isUserBestOfferMaker ? "Your Best Offer" : "Best Offer"}
             </div>
             <div style={{ fontSize: "0.875rem", color: "#DC2626", marginTop: "0.25rem" }}>
               Amount: {bestOfferAmount > 0 ? bestOfferAmount.toFixed(0) : '-'}
             </div>
+            {isUserBestOfferMaker && (
+              <div style={{ 
+                fontSize: "0.875rem", 
+                color: "#DC2626", 
+                marginTop: "0.5rem",
+                padding: "0.25rem 0.5rem",
+                backgroundColor: "#FEE2E2",
+                borderRadius: "0.25rem",
+                display: "inline-block"
+              }}>
+                You are the market maker
+              </div>
+            )}
           </div>
         </div>
 
@@ -1263,7 +1269,7 @@ export default function Trading() {
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#059669" }}>{price.bidPrice.toFixed(0)}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.bidAmount.toFixed(0)}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
-                        {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
+                        {currentUser && price.userId !== currentUser.uid && price.status === 'active' ? (
                           <>
                             <input
                               type="tel"
@@ -1321,12 +1327,22 @@ export default function Trading() {
                               Hit Bid
                             </button>
                           </>
-                        )}
+                        ) : price.userId === currentUser?.uid ? (
+                          <span style={{ 
+                            fontSize: "0.75rem", 
+                            color: "#6B7280",
+                            padding: "0.25rem 0.5rem",
+                            backgroundColor: "#F3F4F6",
+                            borderRadius: "0.25rem"
+                          }}>
+                            Your Price
+                          </span>
+                        ) : null}
                       </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#DC2626" }}>{price.offerPrice.toFixed(0)}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.offerAmount.toFixed(0)}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
-                        {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
+                        {currentUser && price.userId !== currentUser.uid && price.status === 'active' ? (
                           <>
                             <input
                               type="tel"
@@ -1384,7 +1400,17 @@ export default function Trading() {
                               Lift Offer
                             </button>
                           </>
-                        )}
+                        ) : price.userId === currentUser?.uid ? (
+                          <span style={{ 
+                            fontSize: "0.75rem", 
+                            color: "#6B7280",
+                            padding: "0.25rem 0.5rem",
+                            backgroundColor: "#F3F4F6",
+                            borderRadius: "0.25rem"
+                          }}>
+                            Your Price
+                          </span>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
