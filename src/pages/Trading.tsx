@@ -261,7 +261,7 @@ export default function Trading() {
     setError('');
   };
 
-  // Update the validateTradeAmount function to use direct number conversion
+  // Simplified validateTradeAmount function
   const validateTradeAmount = (amount: string | number | null | undefined, side: 'hit' | 'lift'): boolean => {
     console.log('validateTradeAmount called:', { amount, side, type: typeof amount });
 
@@ -273,19 +273,7 @@ export default function Trading() {
     }
 
     // Direct number conversion
-    let numericAmount: number;
-    
-    if (typeof amount === 'string') {
-      // If it's a string, force conversion
-      numericAmount = parseInt(amount, 10);
-    } else if (typeof amount === 'number') {
-      // Already a number
-      numericAmount = amount;
-    } else {
-      // Handle unexpected types
-      numericAmount = 0;
-    }
-    
+    const numericAmount = typeof amount === 'number' ? amount : parseInt(String(amount), 10);
     console.log('Directly converted to number:', { numericAmount, type: typeof numericAmount });
 
     // Validate the numeric value
@@ -295,10 +283,12 @@ export default function Trading() {
       return false;
     }
 
+    // If we got here, the amount is valid
+    console.log('Trade amount is valid:', { numericAmount });
     return true;
   };
 
-  // Update the executeTrade function to do direct number conversion
+  // Simplify executeTrade to directly use validated values
   const executeTrade = async (marketPrice: MarketPrice, side: 'hit' | 'lift') => {
     console.log('executeTrade called:', { side, marketPrice });
     
@@ -310,45 +300,33 @@ export default function Trading() {
     // Clear any previous errors
     setError('');
 
-    // Get the trade amount
+    // Get and directly convert the trade amount
     const inputAmount = side === 'hit' ? tradeAmount.offer : tradeAmount.bid;
     console.log('Raw trade amount from state:', { inputAmount, type: typeof inputAmount });
     
-    // CRITICAL: Convert to number directly
-    let tradeAmountValue: number;
+    // Keep it simple - direct conversion
+    const tradeAmountValue = typeof inputAmount === 'number' 
+      ? inputAmount 
+      : parseInt(String(inputAmount), 10);
     
-    if (typeof inputAmount === 'string') {
-      // If it's a string, parse it
-      tradeAmountValue = inputAmount === '' ? 0 : parseInt(inputAmount, 10);
-    } else if (typeof inputAmount === 'number') {
-      // Already a number
-      tradeAmountValue = inputAmount;
-    } else {
-      // Fallback for null/undefined
-      tradeAmountValue = 0;
-    }
+    console.log('Forced numeric conversion result:', { tradeAmountValue, type: typeof tradeAmountValue, isNaN: isNaN(tradeAmountValue) });
     
-    console.log('Forced numeric conversion result:', { 
-      tradeAmountValue, 
-      type: typeof tradeAmountValue,
-      isNaN: isNaN(tradeAmountValue)
-    });
-    
-    const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
-    
-    // Validate the NUMERIC trade amount
-    if (tradeAmountValue <= 0) {
+    // Simple validation based directly on the numeric value
+    if (isNaN(tradeAmountValue) || tradeAmountValue <= 0) {
+      console.log('Invalid trade amount detected:', { tradeAmountValue });
       setError(`Please enter a valid trade amount greater than 0. Current value: ${tradeAmountValue}`);
       return;
     }
-
+    
+    const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
     if (tradeAmountValue > availableAmount) {
+      console.log('Trade amount exceeds available amount:', { tradeAmountValue, availableAmount });
       setError(`Cannot trade ${tradeAmountValue} shares. Maximum available is ${availableAmount}`);
       return;
     }
 
     try {
-      console.log('Creating trade object');
+      console.log('Creating trade with amount:', tradeAmountValue);
       const trade = {
         symbol: marketPrice.symbol,
         price: side === 'hit' ? marketPrice.offerPrice : marketPrice.bidPrice,
@@ -360,8 +338,7 @@ export default function Trading() {
         status: 'executed' as const,
         timestamp: null
       };
-      console.log('Trade object created:', trade);
-
+      
       // Handle partial trades
       const remainingAmount = availableAmount - tradeAmountValue;
       console.log('Calculated remaining amount:', { remainingAmount });
@@ -523,8 +500,14 @@ export default function Trading() {
                   const rawAmount = tradeAmount[selectedPrice.type];
                   console.log('Trade raw amount:', { rawAmount, type: typeof rawAmount });
                   
-                  // Validate and convert to number
-                  if (!validateTradeAmount(rawAmount, selectedPrice.type === 'bid' ? 'hit' : 'lift')) {
+                  // Directly convert to number for validation
+                  const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
+                  console.log('Trade numeric amount:', { numericAmount, type: typeof numericAmount });
+                  
+                  // Simple validation
+                  if (isNaN(numericAmount) || numericAmount <= 0) {
+                    console.log('Invalid amount detected in click handler:', { numericAmount });
+                    setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
                     return;
                   }
                   
@@ -1047,11 +1030,18 @@ export default function Trading() {
                             onClick={() => {
                               console.log('Hit Bid button clicked:', { price, tradeAmount });
                               
-                              // Get the raw bid amount and validate it
+                              // Get the raw bid amount
                               const rawAmount = tradeAmount.bid;
                               console.log('Raw bid amount:', { rawAmount, type: typeof rawAmount });
                               
-                              if (!validateTradeAmount(rawAmount, 'hit')) {
+                              // Direct numeric conversion
+                              const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
+                              console.log('Bid numeric amount:', { numericAmount, type: typeof numericAmount });
+                              
+                              // Simple validation
+                              if (isNaN(numericAmount) || numericAmount <= 0) {
+                                console.log('Invalid bid amount detected:', { numericAmount });
+                                setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
                                 return;
                               }
                               
@@ -1102,11 +1092,18 @@ export default function Trading() {
                             onClick={() => {
                               console.log('Lift Offer button clicked:', { price, tradeAmount });
                               
-                              // Get the raw offer amount and validate it
+                              // Get the raw offer amount
                               const rawAmount = tradeAmount.offer;
                               console.log('Raw offer amount:', { rawAmount, type: typeof rawAmount });
                               
-                              if (!validateTradeAmount(rawAmount, 'lift')) {
+                              // Direct numeric conversion
+                              const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
+                              console.log('Offer numeric amount:', { numericAmount, type: typeof numericAmount });
+                              
+                              // Simple validation
+                              if (isNaN(numericAmount) || numericAmount <= 0) {
+                                console.log('Invalid offer amount detected:', { numericAmount });
+                                setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
                                 return;
                               }
                               
