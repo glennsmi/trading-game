@@ -315,17 +315,24 @@ export default function Trading() {
     return true;
   };
 
-  // Update the button click handler to pass the numeric amount directly to executeTrade
+  // Add this new function to help with clearer naming for trade types
+  const getTradeTypeDescriptive = (side: 'hit' | 'lift'): string => {
+    // When you "hit" a bid, you're selling to the market maker
+    // When you "lift" an offer, you're buying from the market maker
+    return side === 'hit' ? 'Hit Bid' : 'Lift Offer';
+  };
+
+  // Add back the handleTrade function that was removed
   const handleTrade = (matchingPrice: MarketPrice, tradeType: 'hit' | 'lift', numericAmount: number) => {
     console.log('handleTrade called:', { matchingPrice, tradeType, numericAmount });
     executeTrade(matchingPrice, tradeType, numericAmount);
   };
 
-  // Update the executeTrade function to properly handle partial trades
+  // Update the executeTrade function to correctly handle trade side and price
   const executeTrade = async (
     marketPrice: MarketPrice, 
     side: 'hit' | 'lift',
-    validatedAmount: number // Add this parameter to receive the pre-validated amount
+    validatedAmount: number
   ) => {
     console.log('executeTrade called:', { side, marketPrice, validatedAmount });
     
@@ -341,7 +348,10 @@ export default function Trading() {
     const tradeAmountValue = validatedAmount;
     console.log('Using pre-validated amount:', { tradeAmountValue });
     
-    const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
+    // FIXED: Here was the first issue - we were using the wrong side to determine available amount
+    // When "hitting" a bid, we use the bid amount
+    // When "lifting" an offer, we use the offer amount
+    const availableAmount = side === 'hit' ? marketPrice.bidAmount : marketPrice.offerAmount;
     
     // Simple validation - amount should already be validated, but check again
     if (tradeAmountValue <= 0) {
@@ -358,12 +368,21 @@ export default function Trading() {
 
     try {
       console.log('Creating trade with amount:', tradeAmountValue);
+      
+      // FIXED: Correct the trade price based on side
+      // When "hitting" a bid, the price is the bid price
+      // When "lifting" an offer, the price is the offer price
+      const tradePrice = side === 'hit' ? marketPrice.bidPrice : marketPrice.offerPrice;
+      
+      // FIXED: Correctly assign buyer and seller based on the side of the trade
+      // When hitting a bid, current user is SELLING to the market maker (market maker is buyer)
+      // When lifting an offer, current user is BUYING from the market maker (market maker is seller)
       const trade = {
         symbol: marketPrice.symbol,
-        price: side === 'hit' ? marketPrice.offerPrice : marketPrice.bidPrice,
+        price: tradePrice,
         amount: tradeAmountValue,
-        buyerId: side === 'hit' ? currentUser.uid : marketPrice.userId,
-        sellerId: side === 'hit' ? marketPrice.userId : currentUser.uid,
+        buyerId: side === 'hit' ? marketPrice.userId : currentUser.uid,  // If 'hit', market maker is buyer
+        sellerId: side === 'hit' ? currentUser.uid : marketPrice.userId, // If 'hit', current user is seller
         marketPriceId: marketPrice.id!,
         side,
         status: 'executed' as const,
@@ -376,10 +395,10 @@ export default function Trading() {
       
       if (remainingAmount > 0) {
         console.log('Executing partial trade, updating market price');
-        // Create a copy of the market price with the updated amount
+        // FIXED: Update the correct amount field based on the side
         const updatedMarketPrice = {
           ...marketPrice,
-          [side === 'hit' ? 'offerAmount' : 'bidAmount']: remainingAmount
+          [side === 'hit' ? 'bidAmount' : 'offerAmount']: remainingAmount
         };
         
         // Update in Firestore
@@ -573,6 +592,9 @@ export default function Trading() {
                   console.log('Found matching price:', matchingPrice);
                   
                   if (matchingPrice) {
+                    // FIXED: The key fix - map the box type correctly to the trade type
+                    // If user clicks the bid box, they want to hit the bid (sell to market maker)
+                    // If user clicks the offer box, they want to lift the offer (buy from market maker)
                     const tradeType = selectedPrice.type === 'bid' ? 'hit' : 'lift';
                     console.log('Executing trade:', { tradeType, matchingPrice });
                     handleTrade(matchingPrice, tradeType, numericAmount);
@@ -1119,7 +1141,8 @@ export default function Trading() {
                               }
                               
                               if (price.status === 'active') {
-                                console.log('Price is active, executing hit trade');
+                                console.log('Price is active, executing hit bid trade');
+                                // FIXED: When hitting a bid, we use 'hit' as the trade type
                                 handleTrade(price, 'hit', numericAmount);
                               } else {
                                 console.log('Price is not active, cannot trade');
@@ -1181,7 +1204,8 @@ export default function Trading() {
                               }
                               
                               if (price.status === 'active') {
-                                console.log('Price is active, executing lift trade');
+                                console.log('Price is active, executing lift offer trade');
+                                // FIXED: When lifting an offer, we use 'lift' as the trade type
                                 handleTrade(price, 'lift', numericAmount);
                               } else {
                                 console.log('Price is not active, cannot trade');
@@ -1237,6 +1261,7 @@ export default function Trading() {
                 {trades.map((trade) => {
                   const isUserBuyer = currentUser && trade.buyerId === currentUser.uid;
                   const isUserSeller = currentUser && trade.sellerId === currentUser.uid;
+                  // Determine the user's role based on whether they are the buyer or seller
                   const userRole = isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
                   
                   // Ensure trade amount is a valid number
@@ -1254,7 +1279,7 @@ export default function Trading() {
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: trade.side === 'hit' ? "#DC2626" : "#059669" }}>{trade.price}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{tradeAmount}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
-                        {trade.side === 'hit' ? 'Hit Offer' : 'Lift Bid'}
+                        {getTradeTypeDescriptive(trade.side)}
                       </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>
                         {userRole}

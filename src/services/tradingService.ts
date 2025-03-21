@@ -9,13 +9,16 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
-  limit
+  limit,
+  runTransaction,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { MarketPrice } from '../types/trading';
+import { MarketPrice, Trade } from '../types/trading';
 import { getAuth } from 'firebase/auth';
 
 const COLLECTION_NAME = 'marketPrices';
+const TRADES_COLLECTION = 'trades';
 
 // Add a debug helper to test permissions
 const testFirestorePermissions = async () => {
@@ -103,6 +106,7 @@ initializeCollections().then(result => {
   console.log('Collection initialization:', result ? 'successful' : 'failed');
 });
 
+// Add trade-related functions to the service export
 export const tradingService = {
   // Create or update market price
   saveMarketPrice: async (data: Omit<MarketPrice, 'id'>) => {
@@ -233,4 +237,147 @@ export const tradingService = {
 
   // Add the initialization function
   initializeCollections,
+
+  // Execute a trade
+  executeTrade: async (trade: Omit<Trade, 'id'>) => {
+    try {
+      // Start a transaction to ensure atomicity
+      await runTransaction(db, async (transaction) => {
+        // Get the market price document
+        const marketPriceRef = doc(db, COLLECTION_NAME, trade.marketPriceId);
+        const marketPriceDoc = await transaction.get(marketPriceRef);
+        
+        if (!marketPriceDoc.exists()) {
+          throw new Error('Market price no longer exists');
+        }
+
+        const marketPrice = marketPriceDoc.data() as MarketPrice;
+        
+        // Verify the price is still active
+        if (marketPrice.status !== 'active') {
+          throw new Error('Market price is no longer active');
+        }
+
+        // Create the trade with buyer and seller references
+        const tradeRef = doc(collection(db, TRADES_COLLECTION));
+        const tradeData = {
+          ...trade,
+          timestamp: serverTimestamp(),
+          buyerRef: doc(db, 'users', trade.buyerId),
+          sellerRef: doc(db, 'users', trade.sellerId)
+        };
+        transaction.set(tradeRef, tradeData);
+
+        // Update the market price status to executed
+        transaction.update(marketPriceRef, {
+          status: 'executed',
+          timestamp: serverTimestamp(),
+          executedTradeId: tradeRef.id // Reference to the executed trade
+        });
+
+        // Create entries in user's trade collections
+        const buyerTradeRef = doc(collection(db, `users/${trade.buyerId}/trades`));
+        const sellerTradeRef = doc(collection(db, `users/${trade.sellerId}/trades`));
+
+        transaction.set(buyerTradeRef, {
+          tradeId: tradeRef.id,
+          role: 'buyer',
+          ...tradeData
+        });
+
+        transaction.set(sellerTradeRef, {
+          tradeId: tradeRef.id,
+          role: 'seller',
+          ...tradeData
+        });
+      });
+
+      return true;
+    } catch (error: any) {
+      console.error('Error executing trade: ', error);
+      throw error;
+    }
+  },
+
+  // Subscribe to trades
+  subscribeToTrades: (callback: (trades: Trade[]) => void) => {
+    // Query for all trades, ordered by timestamp
+    const q = query(
+      collection(db, TRADES_COLLECTION),
+      limit(100) // Limit to last 100 trades
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const trades = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Trade[];
+      
+      // Sort trades by timestamp, most recent first
+      trades.sort((a, b) => {
+        const timeA = a.timestamp?.toMillis() || 0;
+        const timeB = b.timestamp?.toMillis() || 0;
+        return timeB - timeA;
+      });
+      
+      callback(trades);
+    });
+  },
+
+  // Get trades for a specific user
+  getUserTrades: async (userId: string) => {
+    try {
+      const userTradesRef = collection(db, `users/${userId}/trades`);
+      const querySnapshot = await getDocs(userTradesRef);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Trade[];
+    } catch (error) {
+      console.error('Error getting user trades:', error);
+      throw error;
+    }
+  },
+
+  // Subscribe to trades for a specific user
+  subscribeToUserTrades: (userId: string, callback: (trades: Trade[]) => void) => {
+    const userTradesRef = collection(db, `users/${userId}/trades`);
+    const q = query(userTradesRef, limit(100));
+
+    return onSnapshot(q, (querySnapshot) => {
+      const trades = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Trade[];
+      
+      // Sort trades by timestamp, most recent first
+      trades.sort((a, b) => {
+        const timeA = a.timestamp?.toMillis() || 0;
+        const timeB = b.timestamp?.toMillis() || 0;
+        return timeB - timeA;
+      });
+      
+      callback(trades);
+    });
+  },
+
+  // Get trade details by ID
+  getTradeById: async (tradeId: string) => {
+    try {
+      const tradeRef = doc(db, TRADES_COLLECTION, tradeId);
+      const tradeDoc = await getDoc(tradeRef);
+      
+      if (!tradeDoc.exists()) {
+        throw new Error('Trade not found');
+      }
+      
+      return {
+        id: tradeDoc.id,
+        ...tradeDoc.data()
+      } as Trade;
+    } catch (error) {
+      console.error('Error getting trade:', error);
+      throw error;
+    }
+  },
 }; 
