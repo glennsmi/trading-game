@@ -17,17 +17,16 @@ const COLLECTION_NAME = 'marketPrices';
 
 export const tradingService = {
   // Create or update market price
-  saveMarketPrice: async (marketPrice: Omit<MarketPrice, 'id' | 'timestamp' | 'status'>) => {
+  saveMarketPrice: async (data: Omit<MarketPrice, 'id'>) => {
     try {
-      // Add server timestamp and status
       const docData = {
-        ...marketPrice,
+        ...data,
         timestamp: serverTimestamp(),
         status: 'active'
       };
       
       const docRef = await addDoc(collection(db, COLLECTION_NAME), docData);
-      return { id: docRef.id, ...docData };
+      return docRef.id;
     } catch (error: any) {
       console.error('Error saving market price: ', error);
       throw error;
@@ -35,18 +34,20 @@ export const tradingService = {
   },
 
   // Update an existing market price
-  updateMarketPrice: async (id: string, data: Partial<MarketPrice>) => {
+  updateMarketPrice: async (quoteId: string, quoteData: Omit<MarketPrice, 'id'>) => {
+    if (!quoteId) throw new Error('Quote ID is required for updates');
+
     try {
       const updateData = {
-        ...data,
+        ...quoteData,
         timestamp: serverTimestamp()
       };
       
-      const docRef = doc(db, COLLECTION_NAME, id);
+      const docRef = doc(db, COLLECTION_NAME, quoteId);
       await updateDoc(docRef, updateData);
-      return { id, ...updateData };
-    } catch (error: any) {
-      console.error('Error updating market price: ', error);
+      return quoteId;
+    } catch (error) {
+      console.error('Error updating market price:', error);
       throw error;
     }
   },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { tradingService } from '../services/tradingService';
 import { MarketPrice, MarketPriceFormData } from '../types/trading';
@@ -16,6 +16,8 @@ export default function Trading() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [savingInProgress, setSavingInProgress] = useState(false);
+  const [currentQuote, setCurrentQuote] = useState<string | null>(null);
 
   // Fetch all active market prices in real-time
   useEffect(() => {
@@ -45,6 +47,66 @@ export default function Trading() {
     fetchUserMarketPrices();
   }, [currentUser]);
 
+  // Debounced save function
+  const debouncedSave = useCallback(
+    async (data: MarketPriceFormData) => {
+      if (!currentUser) {
+        setError('You must be logged in to submit market prices');
+        return;
+      }
+
+      if (!data.symbol || data.bidPrice <= 0 || data.offerPrice <= 0) {
+        // Don't show error during data entry, just don't save yet
+        return;
+      }
+
+      // Validate bid must be less than offer
+      if (data.bidPrice >= data.offerPrice) {
+        setError('Bid price must be less than offer price');
+        return;
+      }
+
+      try {
+        setSavingInProgress(true);
+        
+        const quoteData = {
+          ...data,
+          userId: currentUser.uid
+        };
+        
+        // If we already have a quote ID, update it rather than creating a new one
+        if (currentQuote) {
+          await tradingService.updateMarketPrice(currentQuote, quoteData);
+        } else {
+          const newQuoteId = await tradingService.saveMarketPrice(quoteData);
+          setCurrentQuote(newQuoteId);
+        }
+        
+        setError('');
+      } catch (err) {
+        console.error('Error saving market price:', err);
+        setError('Failed to save market price');
+      } finally {
+        setSavingInProgress(false);
+      }
+    },
+    [currentUser, currentQuote]
+  );
+
+  // Use effect to trigger save when form data changes
+  useEffect(() => {
+    // Skip empty or initial state
+    if (!formData.symbol || (formData.bidPrice === 0 && formData.offerPrice === 0)) {
+      return;
+    }
+    
+    const timeoutId = setTimeout(() => {
+      debouncedSave(formData);
+    }, 500); // 500ms debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [formData, debouncedSave]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData({
@@ -53,51 +115,17 @@ export default function Trading() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!currentUser) {
-      setError('You must be logged in to submit market prices');
-      return;
-    }
-
-    if (!formData.symbol || formData.bidPrice <= 0 || formData.offerPrice <= 0) {
-      setError('Please fill all required fields with valid values');
-      return;
-    }
-
-    // Validate bid must be less than offer
-    if (formData.bidPrice >= formData.offerPrice) {
-      setError('Bid price must be less than offer price');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const newMarketPrice = {
-        ...formData,
-        userId: currentUser.uid
-      };
-      
-      await tradingService.saveMarketPrice(newMarketPrice);
-      
-      // Reset form
-      setFormData({
-        symbol: '',
-        bidPrice: 0,
-        bidAmount: 0,
-        offerPrice: 0,
-        offerAmount: 0
-      });
-      
-      setError('');
-    } catch (err) {
-      console.error('Error saving market price:', err);
-      setError('Failed to save market price');
-    } finally {
-      setLoading(false);
-    }
+  const handleNewQuote = () => {
+    // Clear the form to start a new quote
+    setFormData({
+      symbol: '',
+      bidPrice: 0,
+      bidAmount: 0,
+      offerPrice: 0,
+      offerAmount: 0
+    });
+    setCurrentQuote(null);
+    setError('');
   };
 
   const handleCancel = async (id: string) => {
@@ -106,6 +134,12 @@ export default function Trading() {
     try {
       setLoading(true);
       await tradingService.cancelMarketPrice(id);
+      
+      // If we're canceling the current quote, reset the form
+      if (id === currentQuote) {
+        handleNewQuote();
+      }
+      
       setUserMarketPrices(prevPrices => 
         prevPrices.map(price => 
           price.id === id ? { ...price, status: 'canceled' } : price
@@ -124,19 +158,44 @@ export default function Trading() {
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Trading Dashboard</h1>
       
       {error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-sm">
+        <div style={{ backgroundColor: "#FEE2E2", borderLeft: "4px solid #EF4444", color: "#B91C1C", padding: "1rem", marginBottom: "1.5rem", borderRadius: "0.375rem" }}>
           <p>{error}</p>
         </div>
       )}
       
       {/* Market price submission form */}
-      <div className="bg-white p-8 rounded-lg shadow-md mb-10 border border-gray-200">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">Submit Market Price</h2>
+      <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "2.5rem", border: "1px solid #E5E7EB" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.5rem" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "600", color: "#374151" }}>
+            {currentQuote ? 'Edit Quote' : 'New Quote'}
+          </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {savingInProgress && (
+              <span style={{ fontSize: "0.875rem", color: "#6B7280" }}>Saving...</span>
+            )}
+            {currentQuote && (
+              <button
+                type="button"
+                onClick={handleNewQuote}
+                style={{ 
+                  padding: "0.5rem 1rem", 
+                  backgroundColor: "#4B5563", 
+                  color: "white", 
+                  borderRadius: "0.375rem", 
+                  fontSize: "0.875rem",
+                  fontWeight: "500"
+                }}
+              >
+                New Quote
+              </button>
+            )}
+          </div>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
           {/* Symbol Input */}
-          <div className="mb-6">
-            <label htmlFor="symbol" className="block text-lg font-medium text-gray-700 mb-2">
+          <div style={{ marginBottom: "1.5rem" }}>
+            <label htmlFor="symbol" style={{ display: "block", fontSize: "1.125rem", fontWeight: "500", marginBottom: "0.5rem", color: "#374151" }}>
               Symbol
             </label>
             <input
@@ -145,21 +204,37 @@ export default function Trading() {
               name="symbol"
               value={formData.symbol}
               onChange={handleInputChange}
-              className="w-full sm:w-1/2 md:w-1/3 p-3 text-xl font-bold border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+              style={{ 
+                width: "33%", 
+                padding: "0.75rem", 
+                fontSize: "1.25rem", 
+                fontWeight: "bold", 
+                border: "2px solid #D1D5DB", 
+                borderRadius: "0.375rem", 
+                textTransform: "uppercase" 
+              }}
               placeholder="e.g. BTC/USD"
               required
             />
           </div>
           
           {/* Trading Prices Container */}
-          <div className="flex flex-row gap-4">
+          <div style={{ display: "flex", flexDirection: "row", gap: "1rem" }}>
             {/* BID SECTION */}
-            <div className="flex-1 border-2 border-green-500 rounded-lg p-4 bg-green-50">
-              <h3 className="text-xl font-bold text-green-800 mb-2 text-center">Bid (Buy)</h3>
+            <div style={{ 
+              flex: 1, 
+              border: "2px solid #10B981", 
+              borderRadius: "0.5rem", 
+              padding: "1rem", 
+              backgroundColor: "#ECFDF5" 
+            }}>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#065F46", marginBottom: "0.5rem", textAlign: "center" }}>
+                Bid (Buy)
+              </h3>
               
               {/* Bid Price */}
-              <div className="mb-4">
-                <label htmlFor="bidPrice" className="block text-sm font-medium text-gray-700 mb-1 text-center">
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="bidPrice" style={{ display: "block", fontSize: "0.875rem", fontWeight: "500", marginBottom: "0.25rem", textAlign: "center", color: "#374151" }}>
                   Price
                 </label>
                 <input
@@ -168,7 +243,16 @@ export default function Trading() {
                   name="bidPrice"
                   value={formData.bidPrice || ''}
                   onChange={handleInputChange}
-                  className="w-full p-2 text-5xl font-bold text-green-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
+                  style={{ 
+                    width: "100%", 
+                    padding: "0.5rem", 
+                    fontSize: "3rem", 
+                    fontWeight: "bold", 
+                    color: "#047857", 
+                    border: "none", 
+                    backgroundColor: "transparent", 
+                    textAlign: "center" 
+                  }}
                   min="0"
                   placeholder="0"
                   required
@@ -177,7 +261,7 @@ export default function Trading() {
               
               {/* Bid Amount */}
               <div>
-                <label htmlFor="bidAmount" className="block text-sm font-medium text-gray-700 mb-1 text-center">
+                <label htmlFor="bidAmount" style={{ display: "block", fontSize: "0.875rem", fontWeight: "500", marginBottom: "0.25rem", textAlign: "center", color: "#374151" }}>
                   Amount
                 </label>
                 <input
@@ -186,7 +270,15 @@ export default function Trading() {
                   name="bidAmount"
                   value={formData.bidAmount || ''}
                   onChange={handleInputChange}
-                  className="w-full p-2 text-base border-2 border-green-300 rounded-md bg-white text-center"
+                  style={{ 
+                    width: "100%", 
+                    padding: "0.5rem", 
+                    fontSize: "1rem", 
+                    border: "2px solid #6EE7B7", 
+                    borderRadius: "0.375rem", 
+                    backgroundColor: "white", 
+                    textAlign: "center" 
+                  }}
                   min="0"
                   placeholder="0"
                   required
@@ -195,12 +287,20 @@ export default function Trading() {
             </div>
             
             {/* OFFER SECTION */}
-            <div className="flex-1 border-2 border-red-500 rounded-lg p-4 bg-red-50">
-              <h3 className="text-xl font-bold text-red-800 mb-2 text-center">Offer (Sell)</h3>
+            <div style={{ 
+              flex: 1, 
+              border: "2px solid #EF4444", 
+              borderRadius: "0.5rem", 
+              padding: "1rem", 
+              backgroundColor: "#FEF2F2" 
+            }}>
+              <h3 style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#991B1B", marginBottom: "0.5rem", textAlign: "center" }}>
+                Offer (Sell)
+              </h3>
               
               {/* Offer Price */}
-              <div className="mb-4">
-                <label htmlFor="offerPrice" className="block text-sm font-medium text-gray-700 mb-1 text-center">
+              <div style={{ marginBottom: "1rem" }}>
+                <label htmlFor="offerPrice" style={{ display: "block", fontSize: "0.875rem", fontWeight: "500", marginBottom: "0.25rem", textAlign: "center", color: "#374151" }}>
                   Price
                 </label>
                 <input
@@ -209,7 +309,16 @@ export default function Trading() {
                   name="offerPrice"
                   value={formData.offerPrice || ''}
                   onChange={handleInputChange}
-                  className="w-full p-2 text-5xl font-bold text-red-700 border-0 bg-transparent text-center focus:outline-none focus:ring-0"
+                  style={{ 
+                    width: "100%", 
+                    padding: "0.5rem", 
+                    fontSize: "3rem", 
+                    fontWeight: "bold", 
+                    color: "#B91C1C", 
+                    border: "none", 
+                    backgroundColor: "transparent", 
+                    textAlign: "center" 
+                  }}
                   min="0"
                   placeholder="0"
                   required
@@ -218,7 +327,7 @@ export default function Trading() {
               
               {/* Offer Amount */}
               <div>
-                <label htmlFor="offerAmount" className="block text-sm font-medium text-gray-700 mb-1 text-center">
+                <label htmlFor="offerAmount" style={{ display: "block", fontSize: "0.875rem", fontWeight: "500", marginBottom: "0.25rem", textAlign: "center", color: "#374151" }}>
                   Amount
                 </label>
                 <input
@@ -227,7 +336,15 @@ export default function Trading() {
                   name="offerAmount"
                   value={formData.offerAmount || ''}
                   onChange={handleInputChange}
-                  className="w-full p-2 text-base border-2 border-red-300 rounded-md bg-white text-center"
+                  style={{ 
+                    width: "100%", 
+                    padding: "0.5rem", 
+                    fontSize: "1rem", 
+                    border: "2px solid #FECACA", 
+                    borderRadius: "0.375rem", 
+                    backgroundColor: "white", 
+                    textAlign: "center" 
+                  }}
                   min="0"
                   placeholder="0"
                   required
@@ -235,55 +352,55 @@ export default function Trading() {
               </div>
             </div>
           </div>
-          
-          {/* Submit Button */}
-          <div className="pt-4 flex justify-center">
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-8 py-4 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              {loading ? 'Submitting...' : 'Submit Quote'}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
       
       {/* Current market prices */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-10 border border-gray-200">
-        <h2 className="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">Market Prices</h2>
+      <div style={{ backgroundColor: "white", padding: "1.5rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "2.5rem", border: "1px solid #E5E7EB" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1.5rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.5rem", color: "#374151" }}>Market Prices</h2>
         
         {loading ? (
-          <div className="flex justify-center items-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700"></div>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "2.5rem 0" }}>
+            <div style={{ 
+              width: "2.5rem", 
+              height: "2.5rem", 
+              borderRadius: "9999px", 
+              borderWidth: "2px", 
+              borderColor: "#E5E7EB", 
+              borderTopColor: "#3B82F6", 
+              animation: "spin 1s linear infinite" 
+            }}></div>
           </div>
         ) : marketPrices.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ minWidth: "100%", backgroundColor: "white", borderCollapse: "collapse" }}>
+              <thead style={{ backgroundColor: "#F9FAFB" }}>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offer Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offer Amount</th>
+                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Symbol</th>
+                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bid Price</th>
+                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bid Amount</th>
+                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Offer Price</th>
+                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Offer Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {marketPrices.map((price) => (
-                  <tr key={price.id} className={price.userId === currentUser?.uid ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{price.symbol}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-700">{price.bidPrice.toFixed(0)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.bidAmount.toFixed(0)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-700">{price.offerPrice.toFixed(0)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.offerAmount.toFixed(0)}</td>
+                  <tr key={price.id} style={{ 
+                    backgroundColor: price.userId === currentUser?.uid ? "#EFF6FF" : "white",
+                    borderBottom: "1px solid #E5E7EB"
+                  }}>
+                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{price.symbol}</td>
+                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#059669" }}>{price.bidPrice.toFixed(0)}</td>
+                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.bidAmount.toFixed(0)}</td>
+                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#DC2626" }}>{price.offerPrice.toFixed(0)}</td>
+                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.offerAmount.toFixed(0)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="py-10 text-center text-gray-500">
+          <div style={{ padding: "2.5rem 0", textAlign: "center", color: "#6B7280" }}>
             <p>No market prices available</p>
           </div>
         )}
@@ -291,40 +408,75 @@ export default function Trading() {
       
       {/* User's market prices */}
       {currentUser && (
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h2 className="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">Your Quotes</h2>
+        <div style={{ backgroundColor: "white", padding: "1.5rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", border: "1px solid #E5E7EB" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1.5rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.5rem", color: "#374151" }}>Your Quotes</h2>
           
           {userMarketPrices.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full bg-white divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ minWidth: "100%", backgroundColor: "white", borderCollapse: "collapse" }}>
+                <thead style={{ backgroundColor: "#F9FAFB" }}>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offer Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Symbol</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bid Price</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Offer Price</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {userMarketPrices.map((price) => (
-                    <tr key={price.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{price.symbol}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-700">{price.bidPrice.toFixed(0)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-700">{price.offerPrice.toFixed(0)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                          ${price.status === 'active' ? 'bg-green-100 text-green-800' : 
-                            price.status === 'executed' ? 'bg-blue-100 text-blue-800' : 
-                            'bg-gray-100 text-gray-800'}`}>
+                    <tr 
+                      key={price.id} 
+                      style={{ 
+                        borderBottom: "1px solid #E5E7EB",
+                        backgroundColor: price.id === currentQuote ? "#EFF6FF" : "white",
+                        cursor: "pointer"
+                      }}
+                      onClick={() => {
+                        if (price.status === 'active') {
+                          setFormData({
+                            symbol: price.symbol,
+                            bidPrice: price.bidPrice,
+                            bidAmount: price.bidAmount,
+                            offerPrice: price.offerPrice,
+                            offerAmount: price.offerAmount
+                          });
+                          setCurrentQuote(price.id || null);
+                        }
+                      }}
+                    >
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{price.symbol}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#059669" }}>{price.bidPrice.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#DC2626" }}>{price.offerPrice.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
+                        <span style={{ 
+                          display: "inline-flex", 
+                          padding: "0.125rem 0.5rem", 
+                          fontSize: "0.75rem", 
+                          fontWeight: "600", 
+                          borderRadius: "9999px", 
+                          backgroundColor: price.status === 'active' ? "#D1FAE5" : price.status === 'executed' ? "#DBEAFE" : "#F3F4F6", 
+                          color: price.status === 'active' ? "#065F46" : price.status === 'executed' ? "#1E40AF" : "#374151"
+                        }}>
                           {price.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem" }}>
                         {price.status === 'active' && (
                           <button
-                            onClick={() => price.id && handleCancel(price.id)}
-                            className="text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent row click
+                              price.id && handleCancel(price.id);
+                            }}
+                            style={{ 
+                              backgroundColor: "#DC2626", 
+                              color: "white", 
+                              padding: "0.25rem 0.75rem", 
+                              borderRadius: "0.375rem", 
+                              fontSize: "0.875rem", 
+                              fontWeight: "500", 
+                              cursor: "pointer" 
+                            }}
                           >
                             Cancel
                           </button>
@@ -336,7 +488,7 @@ export default function Trading() {
               </table>
             </div>
           ) : (
-            <div className="py-10 text-center text-gray-500">
+            <div style={{ padding: "2.5rem 0", textAlign: "center", color: "#6B7280" }}>
               <p>You haven't submitted any quotes yet</p>
             </div>
           )}
