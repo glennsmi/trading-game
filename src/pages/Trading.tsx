@@ -315,11 +315,22 @@ export default function Trading() {
     return true;
   };
 
-  // Add this new function to help with clearer naming for trade types
+  // Update the getTradeTypeDescriptive function to be more specific about the market maker perspective
   const getTradeTypeDescriptive = (side: 'hit' | 'lift'): string => {
     // When you "hit" a bid, you're selling to the market maker
     // When you "lift" an offer, you're buying from the market maker
     return side === 'hit' ? 'Hit Bid' : 'Lift Offer';
+  };
+  
+  // Add a new function to describe the market maker's role in a trade
+  const getMarketMakerRole = (side: 'hit' | 'lift', isMarketMaker: boolean): string => {
+    if (!isMarketMaker) {
+      // For non-market makers, show standard Buyer/Seller role
+      return side === 'hit' ? 'Seller' : 'Buyer';
+    }
+    
+    // For market makers, show "Given" when bid is hit, "Paid" when offer is lifted
+    return side === 'hit' ? 'Given' : 'Paid';
   };
 
   // Add back the handleTrade function that was removed
@@ -1261,8 +1272,13 @@ export default function Trading() {
                 {trades.map((trade) => {
                   const isUserBuyer = currentUser && trade.buyerId === currentUser.uid;
                   const isUserSeller = currentUser && trade.sellerId === currentUser.uid;
-                  // Determine the user's role based on whether they are the buyer or seller
-                  const userRole = isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
+                  const isMarketMaker = currentUser && 
+                    ((trade.side === 'hit' && isUserBuyer) || (trade.side === 'lift' && isUserSeller));
+                  
+                  // Determine the user's role with the new market maker terminology
+                  const userRole = isMarketMaker ? 
+                    getMarketMakerRole(trade.side, true) : 
+                    isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
                   
                   // Ensure trade amount is a valid number
                   const tradeAmount = typeof trade.amount === 'number' ? trade.amount : 0;
