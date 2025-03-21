@@ -316,10 +316,14 @@ export default function Trading() {
   };
 
   // Update the getTradeTypeDescriptive function to be more specific about the market maker perspective
-  const getTradeTypeDescriptive = (side: 'hit' | 'lift'): string => {
-    // When you "hit" a bid, you're selling to the market maker
-    // When you "lift" an offer, you're buying from the market maker
-    return side === 'hit' ? 'Hit Bid' : 'Lift Offer';
+  const getTradeTypeDescriptive = (side: 'hit' | 'lift', isMarketMaker: boolean): string => {
+    if (isMarketMaker) {
+      // Market maker perspective: Given when bid is hit, Paid when offer is lifted
+      return side === 'hit' ? 'Given' : 'Paid';
+    } else {
+      // Regular trader perspective: Hit Bid or Lift Offer
+      return side === 'hit' ? 'Hit Bid' : 'Lift Offer';
+    }
   };
   
   // Add a new function to describe the market maker's role in a trade
@@ -329,8 +333,8 @@ export default function Trading() {
       return side === 'hit' ? 'Seller' : 'Buyer';
     }
     
-    // For market makers, show "Given" when bid is hit, "Paid" when offer is lifted
-    return side === 'hit' ? 'Given' : 'Paid';
+    // For market makers, we now use Buyer/Seller for clarity in role column
+    return side === 'hit' ? 'Buyer' : 'Seller';
   };
 
   // Add back the handleTrade function that was removed
@@ -1275,7 +1279,7 @@ export default function Trading() {
                   const isMarketMaker = currentUser && 
                     ((trade.side === 'hit' && isUserBuyer) || (trade.side === 'lift' && isUserSeller));
                   
-                  // Determine the user's role with the new market maker terminology
+                  // Determine user's role (Buyer/Seller)
                   const userRole = isMarketMaker ? 
                     getMarketMakerRole(trade.side, true) : 
                     isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
@@ -1295,7 +1299,7 @@ export default function Trading() {
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: trade.side === 'hit' ? "#DC2626" : "#059669" }}>{trade.price}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{tradeAmount}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
-                        {getTradeTypeDescriptive(trade.side)}
+                        {getTradeTypeDescriptive(trade.side, isMarketMaker || false)}
                       </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>
                         {userRole}
