@@ -120,161 +120,215 @@ export default function Trading() {
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Trading Page</h1>
+    <div className="container mx-auto p-6 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">Trading Dashboard</h1>
       
-      {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-sm">
+          <p>{error}</p>
+        </div>
+      )}
       
       {/* Market price submission form */}
-      <div className="bg-white p-6 rounded shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4">Submit Market Price</h2>
+      <div className="bg-white p-8 rounded-lg shadow-md mb-10 border border-gray-200">
+        <h2 className="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">Submit Market Price</h2>
         
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Symbol</label>
-              <input
-                type="text"
-                name="symbol"
-                value={formData.symbol}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                required
-              />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Symbol Input - Top Left */}
+          <div className="mb-8">
+            <label htmlFor="symbol" className="block text-lg font-medium text-gray-700 mb-2">
+              Symbol
+            </label>
+            <input
+              id="symbol"
+              type="text"
+              name="symbol"
+              value={formData.symbol}
+              onChange={handleInputChange}
+              className="w-full md:w-1/3 p-3 text-xl font-bold border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+              placeholder="e.g. BTC/USD"
+              required
+            />
+          </div>
+          
+          {/* Bid and Offer Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Bid Side */}
+            <div className="bg-green-50 rounded-lg p-6 border-2 border-green-200 shadow-sm">
+              <h3 className="text-xl font-medium text-green-800 mb-4">Bid (Buy)</h3>
+              
+              {/* Bid Price - Large Box */}
+              <div className="mb-4">
+                <label htmlFor="bidPrice" className="block font-medium text-gray-700 mb-1">
+                  Price
+                </label>
+                <input
+                  id="bidPrice"
+                  type="number"
+                  name="bidPrice"
+                  value={formData.bidPrice || ''}
+                  onChange={handleInputChange}
+                  className="w-full p-4 text-3xl font-bold text-green-700 border-2 border-green-300 rounded-md bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              
+              {/* Bid Amount - Smaller Box Below */}
+              <div>
+                <label htmlFor="bidAmount" className="block font-medium text-gray-700 mb-1">
+                  Amount
+                </label>
+                <input
+                  id="bidAmount"
+                  type="number"
+                  name="bidAmount"
+                  value={formData.bidAmount || ''}
+                  onChange={handleInputChange}
+                  className="w-full p-2 text-lg border-2 border-green-200 rounded-md bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
             </div>
             
-            <div>
-              <label className="block mb-1">Bid Price</label>
-              <input
-                type="number"
-                name="bidPrice"
-                value={formData.bidPrice || ''}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block mb-1">Bid Amount</label>
-              <input
-                type="number"
-                name="bidAmount"
-                value={formData.bidAmount || ''}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block mb-1">Offer Price</label>
-              <input
-                type="number"
-                name="offerPrice"
-                value={formData.offerPrice || ''}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block mb-1">Offer Amount</label>
-              <input
-                type="number"
-                name="offerAmount"
-                value={formData.offerAmount || ''}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded"
-                step="0.01"
-                min="0"
-                required
-              />
+            {/* Offer Side */}
+            <div className="bg-red-50 rounded-lg p-6 border-2 border-red-200 shadow-sm">
+              <h3 className="text-xl font-medium text-red-800 mb-4">Offer (Sell)</h3>
+              
+              {/* Offer Price - Large Box */}
+              <div className="mb-4">
+                <label htmlFor="offerPrice" className="block font-medium text-gray-700 mb-1">
+                  Price
+                </label>
+                <input
+                  id="offerPrice"
+                  type="number"
+                  name="offerPrice"
+                  value={formData.offerPrice || ''}
+                  onChange={handleInputChange}
+                  className="w-full p-4 text-3xl font-bold text-red-700 border-2 border-red-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              
+              {/* Offer Amount - Smaller Box Below */}
+              <div>
+                <label htmlFor="offerAmount" className="block font-medium text-gray-700 mb-1">
+                  Amount
+                </label>
+                <input
+                  id="offerAmount"
+                  type="number"
+                  name="offerAmount"
+                  value={formData.offerAmount || ''}
+                  onChange={handleInputChange}
+                  className="w-full p-2 text-lg border-2 border-red-200 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
             </div>
           </div>
           
-          <button
-            type="submit"
-            className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-            disabled={loading}
-          >
-            {loading ? 'Submitting...' : 'Submit'}
-          </button>
+          {/* Submit Button */}
+          <div className="pt-4">
+            <button
+              type="submit"
+              className="w-full md:w-auto px-8 py-4 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? 'Submitting...' : 'Submit Quote'}
+            </button>
+          </div>
         </form>
       </div>
       
       {/* Current market prices */}
-      <div className="bg-white p-6 rounded shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4">Market Prices</h2>
+      <div className="bg-white p-6 rounded-lg shadow-md mb-10 border border-gray-200">
+        <h2 className="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">Market Prices</h2>
         
         {loading ? (
-          <p>Loading market prices...</p>
+          <div className="flex justify-center items-center py-10">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-700"></div>
+          </div>
         ) : marketPrices.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-white">
-              <thead>
+            <table className="min-w-full bg-white divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="py-2 px-4 border-b">Symbol</th>
-                  <th className="py-2 px-4 border-b">Bid Price</th>
-                  <th className="py-2 px-4 border-b">Bid Amount</th>
-                  <th className="py-2 px-4 border-b">Offer Price</th>
-                  <th className="py-2 px-4 border-b">Offer Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offer Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offer Amount</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-200">
                 {marketPrices.map((price) => (
-                  <tr key={price.id} className={price.userId === currentUser?.uid ? 'bg-blue-50' : ''}>
-                    <td className="py-2 px-4 border-b">{price.symbol}</td>
-                    <td className="py-2 px-4 border-b">{price.bidPrice.toFixed(2)}</td>
-                    <td className="py-2 px-4 border-b">{price.bidAmount.toFixed(2)}</td>
-                    <td className="py-2 px-4 border-b">{price.offerPrice.toFixed(2)}</td>
-                    <td className="py-2 px-4 border-b">{price.offerAmount.toFixed(2)}</td>
+                  <tr key={price.id} className={price.userId === currentUser?.uid ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{price.symbol}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700">{price.bidPrice.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.bidAmount.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-700">{price.offerPrice.toFixed(2)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{price.offerAmount.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p>No market prices available</p>
+          <div className="py-10 text-center text-gray-500">
+            <p>No market prices available</p>
+          </div>
         )}
       </div>
       
       {/* User's market prices */}
       {currentUser && (
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-4">Your Market Prices</h2>
+        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+          <h2 className="text-2xl font-semibold mb-6 text-gray-700 border-b pb-2">Your Quotes</h2>
           
           {userMarketPrices.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full bg-white">
-                <thead>
+              <table className="min-w-full bg-white divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <th className="py-2 px-4 border-b">Symbol</th>
-                    <th className="py-2 px-4 border-b">Bid Price</th>
-                    <th className="py-2 px-4 border-b">Offer Price</th>
-                    <th className="py-2 px-4 border-b">Status</th>
-                    <th className="py-2 px-4 border-b">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bid Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Offer Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {userMarketPrices.map((price) => (
-                    <tr key={price.id}>
-                      <td className="py-2 px-4 border-b">{price.symbol}</td>
-                      <td className="py-2 px-4 border-b">{price.bidPrice.toFixed(2)}</td>
-                      <td className="py-2 px-4 border-b">{price.offerPrice.toFixed(2)}</td>
-                      <td className="py-2 px-4 border-b">{price.status}</td>
-                      <td className="py-2 px-4 border-b">
+                    <tr key={price.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{price.symbol}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-700">{price.bidPrice.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-red-700">{price.offerPrice.toFixed(2)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                          ${price.status === 'active' ? 'bg-green-100 text-green-800' : 
+                            price.status === 'executed' ? 'bg-blue-100 text-blue-800' : 
+                            'bg-gray-100 text-gray-800'}`}>
+                          {price.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {price.status === 'active' && (
                           <button
                             onClick={() => price.id && handleCancel(price.id)}
-                            className="bg-red-500 text-white py-1 px-2 rounded hover:bg-red-600"
+                            className="text-white bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                           >
                             Cancel
                           </button>
@@ -286,7 +340,9 @@ export default function Trading() {
               </table>
             </div>
           ) : (
-            <p>You haven't submitted any market prices yet</p>
+            <div className="py-10 text-center text-gray-500">
+              <p>You haven't submitted any quotes yet</p>
+            </div>
           )}
         </div>
       )}
