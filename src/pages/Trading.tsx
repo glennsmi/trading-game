@@ -27,6 +27,7 @@ export default function Trading() {
   const [error, setError] = useState('');
   const [savingInProgress, setSavingInProgress] = useState(false);
   const [currentQuote, setCurrentQuote] = useState<string | null>(null);
+  const [showAdvancedSections, setShowAdvancedSections] = useState(false);
 
   // Get user's active price
   const userActivePrice = useMemo(() => 
@@ -664,6 +665,7 @@ export default function Trading() {
         )}
       </div>
       
+      {/* Error Message */}
       {error && (
         <div style={{ backgroundColor: "#FEE2E2", borderLeft: "4px solid #EF4444", color: "#B91C1C", padding: "1rem", marginBottom: "1.5rem", borderRadius: "0.375rem" }}>
           <p>{error}</p>
@@ -1018,8 +1020,25 @@ export default function Trading() {
         </div>
       </div>
       
-      {/* User's market prices - Moved right after the quote form */}
-      {currentUser && (
+      {/* Toggle for Advanced Sections */}
+      <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+        <button
+          onClick={() => setShowAdvancedSections(!showAdvancedSections)}
+          style={{
+            padding: "0.5rem 1rem",
+            backgroundColor: "#4B5563",
+            color: "white",
+            borderRadius: "0.375rem",
+            fontSize: "0.875rem",
+            fontWeight: "500"
+          }}
+        >
+          {showAdvancedSections ? 'Hide Advanced Sections' : 'Show Advanced Sections'}
+        </button>
+      </div>
+      
+      {/* User's market prices - Only show when advanced sections are visible */}
+      {currentUser && showAdvancedSections && (
         <div style={{ 
           backgroundColor: "white", 
           padding: "1.5rem", 
@@ -1203,236 +1222,323 @@ export default function Trading() {
         </div>
       )}
 
-      {/* Market prices table - Keep this section */}
-      <div style={{ backgroundColor: "white", padding: "1.5rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "2.5rem", border: "1px solid #E5E7EB" }}>
-        <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1.5rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.5rem", color: "#374151" }}>Market Prices</h2>
-        
-        {loading ? (
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "2.5rem 0" }}>
-            <div style={{ 
-              width: "2.5rem", 
-              height: "2.5rem", 
-              borderRadius: "9999px", 
-              borderWidth: "2px", 
-              borderColor: "#E5E7EB", 
-              borderTopColor: "#3B82F6", 
-              animation: "spin 1s linear infinite" 
-            }}></div>
-          </div>
-        ) : marketPrices.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ minWidth: "100%", backgroundColor: "white", borderCollapse: "collapse" }}>
-              <thead style={{ backgroundColor: "#F9FAFB" }}>
-                <tr>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Symbol</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bid</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Action</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Offer</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {marketPrices.map((price) => (
-                  <tr key={price.id} style={{ 
-                    backgroundColor: price.userId === currentUser?.uid ? "#EFF6FF" : "white",
-                    borderBottom: "1px solid #E5E7EB"
-                  }}>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{price.symbol}</td>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#059669" }}>{price.bidPrice.toFixed(0)}</td>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.bidAmount.toFixed(0)}</td>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
-                      {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
-                        <>
-                          <input
-                            type="tel"
-                            value={tradeAmount.bid || ''}
-                            onChange={(e) => handleTradeAmountChange(e, 'bid')}
-                            placeholder="Amount"
-                            style={{
-                              width: "80px",
-                              padding: "0.25rem",
-                              marginRight: "0.5rem",
-                              border: "1px solid #D1D5DB",
-                              borderRadius: "0.25rem",
-                              fontSize: "0.875rem"
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              console.log('Hit Bid button clicked:', { price, tradeAmount });
-                              
-                              // Get the raw bid amount
-                              const rawAmount = tradeAmount.bid;
-                              console.log('Raw bid amount:', { rawAmount, type: typeof rawAmount });
-                              
-                              // Direct numeric conversion
-                              const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
-                              console.log('Bid numeric amount:', { numericAmount, type: typeof numericAmount });
-                              
-                              // Simple validation
-                              if (isNaN(numericAmount) || numericAmount <= 0) {
-                                console.log('Invalid bid amount detected:', { numericAmount });
-                                setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
-                                return;
-                              }
-                              
-                              if (price.status === 'active') {
-                                console.log('Price is active, executing hit bid trade');
-                                // FIXED: When hitting a bid, we use 'hit' as the trade type
-                                handleTrade(price, 'hit', numericAmount);
-                              } else {
-                                console.log('Price is not active, cannot trade');
-                              }
-                            }}
-                            disabled={!tradeAmount.bid || price.status !== 'active'}
-                            style={{ 
-                              backgroundColor: "#059669",
-                              color: "white",
-                              padding: "0.25rem 0.75rem",
-                              borderRadius: "0.375rem",
-                              fontSize: "0.875rem",
-                              fontWeight: "500",
-                              opacity: (!tradeAmount.bid || price.status !== 'active') ? 0.5 : 1,
-                              cursor: (!tradeAmount.bid || price.status !== 'active') ? "not-allowed" : "pointer"
-                            }}
-                          >
-                            Hit Bid
-                          </button>
-                        </>
-                      )}
-                    </td>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#DC2626" }}>{price.offerPrice.toFixed(0)}</td>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.offerAmount.toFixed(0)}</td>
-                    <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
-                      {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
-                        <>
-                          <input
-                            type="tel"
-                            value={tradeAmount.offer || ''}
-                            onChange={(e) => handleTradeAmountChange(e, 'offer')}
-                            placeholder="Amount"
-                            style={{
-                              width: "80px",
-                              padding: "0.25rem",
-                              marginRight: "0.5rem",
-                              border: "1px solid #D1D5DB",
-                              borderRadius: "0.25rem",
-                              fontSize: "0.875rem"
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              console.log('Lift Offer button clicked:', { price, tradeAmount });
-                              
-                              // Get the raw offer amount
-                              const rawAmount = tradeAmount.offer;
-                              console.log('Raw offer amount:', { rawAmount, type: typeof rawAmount });
-                              
-                              // Direct numeric conversion
-                              const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
-                              console.log('Offer numeric amount:', { numericAmount, type: typeof numericAmount });
-                              
-                              // Simple validation
-                              if (isNaN(numericAmount) || numericAmount <= 0) {
-                                console.log('Invalid offer amount detected:', { numericAmount });
-                                setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
-                                return;
-                              }
-                              
-                              if (price.status === 'active') {
-                                console.log('Price is active, executing lift offer trade');
-                                // FIXED: When lifting an offer, we use 'lift' as the trade type
-                                handleTrade(price, 'lift', numericAmount);
-                              } else {
-                                console.log('Price is not active, cannot trade');
-                              }
-                            }}
-                            disabled={!tradeAmount.offer || price.status !== 'active'}
-                            style={{ 
-                              backgroundColor: "#DC2626",
-                              color: "white",
-                              padding: "0.25rem 0.75rem",
-                              borderRadius: "0.375rem",
-                              fontSize: "0.875rem",
-                              fontWeight: "500",
-                              opacity: (!tradeAmount.offer || price.status !== 'active') ? 0.5 : 1,
-                              cursor: (!tradeAmount.offer || price.status !== 'active') ? "not-allowed" : "pointer"
-                            }}
-                          >
-                            Lift Offer
-                          </button>
-                        </>
-                      )}
-                    </td>
+      {/* Market prices table - Only show when advanced sections are visible */}
+      {showAdvancedSections && (
+        <div style={{ backgroundColor: "white", padding: "1.5rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "2.5rem", border: "1px solid #E5E7EB" }}>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1.5rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.5rem", color: "#374151" }}>Market Prices</h2>
+          
+          {loading ? (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: "2.5rem 0" }}>
+              <div style={{ 
+                width: "2.5rem", 
+                height: "2.5rem", 
+                borderRadius: "9999px", 
+                borderWidth: "2px", 
+                borderColor: "#E5E7EB", 
+                borderTopColor: "#3B82F6", 
+                animation: "spin 1s linear infinite" 
+              }}></div>
+            </div>
+          ) : marketPrices.length > 0 ? (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ minWidth: "100%", backgroundColor: "white", borderCollapse: "collapse" }}>
+                <thead style={{ backgroundColor: "#F9FAFB" }}>
+                  <tr>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Symbol</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Bid</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Action</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Offer</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ padding: "2.5rem 0", textAlign: "center", color: "#6B7280" }}>
-            <p>No market prices available</p>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {marketPrices.map((price) => (
+                    <tr key={price.id} style={{ 
+                      backgroundColor: price.userId === currentUser?.uid ? "#EFF6FF" : "white",
+                      borderBottom: "1px solid #E5E7EB"
+                    }}>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{price.symbol}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#059669" }}>{price.bidPrice.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.bidAmount.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
+                        {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
+                          <>
+                            <input
+                              type="tel"
+                              value={tradeAmount.bid || ''}
+                              onChange={(e) => handleTradeAmountChange(e, 'bid')}
+                              placeholder="Amount"
+                              style={{
+                                width: "80px",
+                                padding: "0.25rem",
+                                marginRight: "0.5rem",
+                                border: "1px solid #D1D5DB",
+                                borderRadius: "0.25rem",
+                                fontSize: "0.875rem"
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                console.log('Hit Bid button clicked:', { price, tradeAmount });
+                                
+                                // Get the raw bid amount
+                                const rawAmount = tradeAmount.bid;
+                                console.log('Raw bid amount:', { rawAmount, type: typeof rawAmount });
+                                
+                                // Direct numeric conversion
+                                const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
+                                console.log('Bid numeric amount:', { numericAmount, type: typeof numericAmount });
+                                
+                                // Simple validation
+                                if (isNaN(numericAmount) || numericAmount <= 0) {
+                                  console.log('Invalid bid amount detected:', { numericAmount });
+                                  setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
+                                  return;
+                                }
+                                
+                                if (price.status === 'active') {
+                                  console.log('Price is active, executing hit bid trade');
+                                  // FIXED: When hitting a bid, we use 'hit' as the trade type
+                                  handleTrade(price, 'hit', numericAmount);
+                                } else {
+                                  console.log('Price is not active, cannot trade');
+                                }
+                              }}
+                              disabled={!tradeAmount.bid || price.status !== 'active'}
+                              style={{ 
+                                backgroundColor: "#059669",
+                                color: "white",
+                                padding: "0.25rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                fontSize: "0.875rem",
+                                fontWeight: "500",
+                                opacity: (!tradeAmount.bid || price.status !== 'active') ? 0.5 : 1,
+                                cursor: (!tradeAmount.bid || price.status !== 'active') ? "not-allowed" : "pointer"
+                              }}
+                            >
+                              Hit Bid
+                            </button>
+                          </>
+                        )}
+                      </td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#DC2626" }}>{price.offerPrice.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.offerAmount.toFixed(0)}</td>
+                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
+                        {currentUser && price.userId !== currentUser.uid && price.status === 'active' && (
+                          <>
+                            <input
+                              type="tel"
+                              value={tradeAmount.offer || ''}
+                              onChange={(e) => handleTradeAmountChange(e, 'offer')}
+                              placeholder="Amount"
+                              style={{
+                                width: "80px",
+                                padding: "0.25rem",
+                                marginRight: "0.5rem",
+                                border: "1px solid #D1D5DB",
+                                borderRadius: "0.25rem",
+                                fontSize: "0.875rem"
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                console.log('Lift Offer button clicked:', { price, tradeAmount });
+                                
+                                // Get the raw offer amount
+                                const rawAmount = tradeAmount.offer;
+                                console.log('Raw offer amount:', { rawAmount, type: typeof rawAmount });
+                                
+                                // Direct numeric conversion
+                                const numericAmount = typeof rawAmount === 'number' ? rawAmount : parseInt(String(rawAmount), 10);
+                                console.log('Offer numeric amount:', { numericAmount, type: typeof numericAmount });
+                                
+                                // Simple validation
+                                if (isNaN(numericAmount) || numericAmount <= 0) {
+                                  console.log('Invalid offer amount detected:', { numericAmount });
+                                  setError(`Please enter a valid trade amount greater than 0. Current value: ${numericAmount}`);
+                                  return;
+                                }
+                                
+                                if (price.status === 'active') {
+                                  console.log('Price is active, executing lift offer trade');
+                                  // FIXED: When lifting an offer, we use 'lift' as the trade type
+                                  handleTrade(price, 'lift', numericAmount);
+                                } else {
+                                  console.log('Price is not active, cannot trade');
+                                }
+                              }}
+                              disabled={!tradeAmount.offer || price.status !== 'active'}
+                              style={{ 
+                                backgroundColor: "#DC2626",
+                                color: "white",
+                                padding: "0.25rem 0.75rem",
+                                borderRadius: "0.375rem",
+                                fontSize: "0.875rem",
+                                fontWeight: "500",
+                                opacity: (!tradeAmount.offer || price.status !== 'active') ? 0.5 : 1,
+                                cursor: (!tradeAmount.offer || price.status !== 'active') ? "not-allowed" : "pointer"
+                              }}
+                            >
+                              Lift Offer
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ padding: "2.5rem 0", textAlign: "center", color: "#6B7280" }}>
+              <p>No market prices available</p>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Trading Ledger */}
+      {/* Trading Ledger - Always visible */}
       <div style={{ backgroundColor: "white", padding: "1.5rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "2.5rem", border: "1px solid #E5E7EB" }}>
         <h2 style={{ fontSize: "1.5rem", fontWeight: "600", marginBottom: "1.5rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.5rem", color: "#374151" }}>Trading Ledger</h2>
         
         {trades.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ minWidth: "100%", backgroundColor: "white", borderCollapse: "collapse" }}>
-              <thead style={{ backgroundColor: "#F9FAFB" }}>
-                <tr>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Time</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Symbol</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Price</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Side</th>
-                  <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trades.map((trade) => {
-                  const isUserBuyer = currentUser && trade.buyerId === currentUser.uid;
-                  const isUserSeller = currentUser && trade.sellerId === currentUser.uid;
-                  const isMarketMaker = currentUser && 
-                    ((trade.side === 'hit' && isUserBuyer) || (trade.side === 'lift' && isUserSeller));
+          <>
+            {/* Net Position and Profit Summary */}
+            {currentUser && (
+              <div style={{ 
+                marginBottom: "1.5rem", 
+                padding: "1rem", 
+                backgroundColor: "#F3F4F6", 
+                borderRadius: "0.5rem",
+                display: "flex",
+                justifyContent: "space-between"
+              }}>
+                {(() => {
+                  // Calculate net position and profit
+                  let netPosition = 0;
+                  let netProfit = 0;
                   
-                  // Determine user's role (Buyer/Seller)
-                  const userRole = isMarketMaker ? 
-                    getMarketMakerRole(trade.side, true) : 
-                    isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
-                  
-                  // Ensure trade amount is a valid number
-                  const tradeAmount = typeof trade.amount === 'number' ? trade.amount : 0;
+                  trades.forEach(trade => {
+                    if (!currentUser) return;
+                    
+                    const isUserBuyer = trade.buyerId === currentUser.uid;
+                    const isUserSeller = trade.sellerId === currentUser.uid;
+                    const tradeAmount = typeof trade.amount === 'number' ? trade.amount : 0;
+                    
+                    // Only count trades where the user was involved
+                    if (isUserBuyer || isUserSeller) {
+                      // For position: Add when buying, subtract when selling
+                      if (isUserBuyer) {
+                        netPosition += tradeAmount;
+                        netProfit -= trade.price * tradeAmount; // Cash outflow when buying
+                      }
+                      if (isUserSeller) {
+                        netPosition -= tradeAmount;
+                        netProfit += trade.price * tradeAmount; // Cash inflow when selling
+                      }
+                    }
+                  });
                   
                   return (
-                    <tr key={trade.id} style={{ 
-                      backgroundColor: (isUserBuyer || isUserSeller) ? "#EFF6FF" : "white",
-                      borderBottom: "1px solid #E5E7EB"
-                    }}>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
-                        {trade.timestamp?.toDate().toLocaleTimeString() || 'Just now'}
-                      </td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{trade.symbol}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: trade.side === 'hit' ? "#DC2626" : "#059669" }}>{trade.price}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{tradeAmount}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
-                        {getTradeTypeDescriptive(trade.side, isMarketMaker || false)}
-                      </td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>
-                        {userRole}
-                      </td>
-                    </tr>
+                    <>
+                      <div style={{ flex: 1, textAlign: "center", padding: "0.5rem", borderRight: "1px solid #E5E7EB" }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: "500", color: "#6B7280", marginBottom: "0.25rem" }}>
+                          NET POSITION
+                        </div>
+                        <div style={{ 
+                          fontSize: "1.5rem", 
+                          fontWeight: "bold", 
+                          color: netPosition === 0 ? "#6B7280" : netPosition > 0 ? "#059669" : "#DC2626" 
+                        }}>
+                          {netPosition > 0 ? "+" : ""}{netPosition.toLocaleString()}
+                        </div>
+                      </div>
+                      <div style={{ flex: 1, textAlign: "center", padding: "0.5rem" }}>
+                        <div style={{ fontSize: "0.875rem", fontWeight: "500", color: "#6B7280", marginBottom: "0.25rem" }}>
+                          NET PROFIT
+                        </div>
+                        <div style={{ 
+                          fontSize: "1.5rem", 
+                          fontWeight: "bold", 
+                          color: netProfit === 0 ? "#6B7280" : netProfit > 0 ? "#059669" : "#DC2626" 
+                        }}>
+                          {netProfit > 0 ? "+" : ""}{netProfit.toLocaleString()}
+                        </div>
+                      </div>
+                    </>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
+                })()}
+              </div>
+            )}
+          
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ minWidth: "100%", backgroundColor: "white", borderCollapse: "collapse" }}>
+                <thead style={{ backgroundColor: "#F9FAFB" }}>
+                  <tr>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Time</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Symbol</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Price</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Side</th>
+                    <th style={{ padding: "0.75rem 1.5rem", textAlign: "left", fontSize: "0.75rem", fontWeight: "500", color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trades.map((trade) => {
+                    const isUserBuyer = currentUser && trade.buyerId === currentUser.uid;
+                    const isUserSeller = currentUser && trade.sellerId === currentUser.uid;
+                    const isMarketMaker = currentUser && 
+                      ((trade.side === 'hit' && isUserBuyer) || (trade.side === 'lift' && isUserSeller));
+                    
+                    // Determine user's role (Buyer/Seller)
+                    const userRole = isMarketMaker ? 
+                      getMarketMakerRole(trade.side, true) : 
+                      isUserBuyer ? 'Buyer' : isUserSeller ? 'Seller' : 'Observer';
+                    
+                    // Ensure trade amount is a valid number
+                    const tradeAmount = typeof trade.amount === 'number' ? trade.amount : 0;
+                    
+                    // Display positive amounts for buys, negative for sells (from user perspective)
+                    const displayAmount = isUserBuyer ? 
+                      `+${tradeAmount}` : 
+                      isUserSeller ? 
+                      `-${tradeAmount}` : 
+                      tradeAmount;
+                    
+                    return (
+                      <tr key={trade.id} style={{ 
+                        backgroundColor: (isUserBuyer || isUserSeller) ? "#EFF6FF" : "white",
+                        borderBottom: "1px solid #E5E7EB"
+                      }}>
+                        <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
+                          {trade.timestamp?.toDate().toLocaleTimeString() || 'Just now'}
+                        </td>
+                        <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{trade.symbol}</td>
+                        <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: trade.side === 'hit' ? "#DC2626" : "#059669" }}>{trade.price}</td>
+                        <td style={{ 
+                          padding: "1rem 1.5rem", 
+                          whiteSpace: "nowrap", 
+                          fontSize: "0.875rem", 
+                          fontWeight: "500",
+                          color: isUserBuyer ? "#059669" : isUserSeller ? "#DC2626" : "#6B7280" 
+                        }}>
+                          {displayAmount}
+                        </td>
+                        <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>
+                          {getTradeTypeDescriptive(trade.side, isMarketMaker || false)}
+                        </td>
+                        <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>
+                          {userRole}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <div style={{ padding: "2.5rem 0", textAlign: "center", color: "#6B7280" }}>
             <p>No trades executed yet</p>
