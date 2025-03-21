@@ -462,7 +462,7 @@ export default function Trading() {
       currentUser ? `Authenticated as ${currentUser.uid}` : 'Not authenticated');
   }, [currentUser]);
 
-  // Calculate best bid and offer
+  // Calculate best bid and offer with improved display for partial fills
   const bestBid = marketPrices
     .filter(price => price.status === 'active' && price.bidPrice > 0)
     .reduce((max, price) => Math.max(max, price.bidPrice), 0);
@@ -476,6 +476,34 @@ export default function Trading() {
 
   const bestOfferAmount = marketPrices
     .find(price => price.status === 'active' && price.offerPrice === bestOffer)?.offerAmount || 0;
+
+  // Add function to check if a price has been partially filled
+  const hasBeenPartiallyFilled = (price: MarketPrice): boolean => {
+    // If the price is not active, it's not relevant
+    if (price.status !== 'active') return false;
+    
+    // Check if this is your quote and if it's been modified
+    if (price.userId === currentUser?.uid && userMarketPrices.length > 0) {
+      // Find the original quote if it exists
+      const originalQuote = userMarketPrices.find(p => p.id === price.id);
+      if (originalQuote) {
+        // If either bid or offer amount has changed, it's been partially filled
+        return (
+          (originalQuote.bidAmount > price.bidAmount && price.bidAmount > 0) || 
+          (originalQuote.offerAmount > price.offerAmount && price.offerAmount > 0)
+        );
+      }
+    }
+    return false;
+  };
+
+  // Add function to format the amount display with potential "partial" indicator
+  const formatAmountDisplay = (price: MarketPrice, side: 'bid' | 'offer'): string => {
+    const amount = side === 'bid' ? price.bidAmount : price.offerAmount;
+    if (amount <= 0) return '-';
+    
+    return amount.toFixed(0);
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
@@ -720,17 +748,38 @@ export default function Trading() {
                 Bid (Buy)
               </h3>
               
-              {/* Current Active Bid Display */}
+              {/* Current Active Bid Display - Add partial fill indicator */}
               {userActivePrice && userActivePrice.bidPrice > 0 && (
                 <div style={{ 
                   marginBottom: "1rem", 
                   padding: "0.5rem",
                   backgroundColor: "white",
                   borderRadius: "0.375rem",
-                  border: "1px solid #10B981"
+                  border: hasBeenPartiallyFilled(userActivePrice) ? "2px dashed #10B981" : "1px solid #10B981"
                 }}>
-                  <div style={{ textAlign: "center", color: "#065F46", fontWeight: "500", marginBottom: "0.25rem" }}>
+                  <div style={{ 
+                    textAlign: "center", 
+                    color: "#065F46", 
+                    fontWeight: "500", 
+                    marginBottom: "0.25rem",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "0.5rem"
+                  }}>
                     Your Active Bid
+                    {hasBeenPartiallyFilled(userActivePrice) && (
+                      <span style={{
+                        fontSize: "0.75rem",
+                        padding: "0.125rem 0.375rem",
+                        backgroundColor: "#D1FAE5",
+                        color: "#065F46",
+                        borderRadius: "9999px",
+                        fontWeight: "600"
+                      }}>
+                        Partial
+                      </span>
+                    )}
                   </div>
                   <div style={{ 
                     fontSize: "1.5rem", 
@@ -818,17 +867,38 @@ export default function Trading() {
                 Offer (Sell)
               </h3>
               
-              {/* Current Active Offer Display */}
+              {/* Current Active Offer Display - Add partial fill indicator */}
               {userActivePrice && userActivePrice.offerPrice > 0 && (
                 <div style={{ 
                   marginBottom: "1rem", 
                   padding: "0.5rem",
                   backgroundColor: "white",
                   borderRadius: "0.375rem",
-                  border: "1px solid #EF4444"
+                  border: hasBeenPartiallyFilled(userActivePrice) ? "2px dashed #EF4444" : "1px solid #EF4444"
                 }}>
-                  <div style={{ textAlign: "center", color: "#991B1B", fontWeight: "500", marginBottom: "0.25rem" }}>
+                  <div style={{ 
+                    textAlign: "center", 
+                    color: "#991B1B", 
+                    fontWeight: "500", 
+                    marginBottom: "0.25rem",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "0.5rem"
+                  }}>
                     Your Active Offer
+                    {hasBeenPartiallyFilled(userActivePrice) && (
+                      <span style={{
+                        fontSize: "0.75rem",
+                        padding: "0.125rem 0.375rem",
+                        backgroundColor: "#FEE2E2",
+                        color: "#991B1B",
+                        borderRadius: "9999px",
+                        fontWeight: "600"
+                      }}>
+                        Partial
+                      </span>
+                    )}
                   </div>
                   <div style={{ 
                     fontSize: "1.5rem", 
@@ -1002,7 +1072,13 @@ export default function Trading() {
                       key={price.id} 
                       style={{ 
                         borderBottom: "1px solid #E5E7EB",
-                        backgroundColor: price.id === currentQuote ? "#EFF6FF" : price.status === 'active' ? "#F0FDF4" : "white",
+                        backgroundColor: price.id === currentQuote 
+                          ? "#EFF6FF" 
+                          : hasBeenPartiallyFilled(price) 
+                            ? "#FEFCE8" // Yellow background for partial fills
+                            : price.status === 'active' 
+                              ? "#F0FDF4" 
+                              : "white",
                         cursor: price.status === 'active' ? "pointer" : "default"
                       }}
                       onClick={() => {
@@ -1020,9 +1096,55 @@ export default function Trading() {
                     >
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#111827" }}>{price.symbol}</td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#059669" }}>{price.bidPrice.toFixed(0)}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.bidAmount.toFixed(0)}</td>
+                      <td style={{ 
+                        padding: "1rem 1.5rem", 
+                        whiteSpace: "nowrap", 
+                        fontSize: "0.875rem", 
+                        color: "#6B7280",
+                        position: "relative" 
+                      }}>
+                        {price.bidAmount.toFixed(0)}
+                        {hasBeenPartiallyFilled(price) && price.bidAmount > 0 && (
+                          <span style={{
+                            position: "absolute",
+                            right: "0.5rem",
+                            top: "0.75rem",
+                            fontSize: "0.75rem",
+                            padding: "0.125rem 0.375rem",
+                            backgroundColor: "#FEF3C7",
+                            color: "#92400E",
+                            borderRadius: "9999px",
+                            fontWeight: "600"
+                          }}>
+                            Partial
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", fontWeight: "500", color: "#DC2626" }}>{price.offerPrice.toFixed(0)}</td>
-                      <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem", color: "#6B7280" }}>{price.offerAmount.toFixed(0)}</td>
+                      <td style={{ 
+                        padding: "1rem 1.5rem", 
+                        whiteSpace: "nowrap", 
+                        fontSize: "0.875rem", 
+                        color: "#6B7280",
+                        position: "relative" 
+                      }}>
+                        {price.offerAmount.toFixed(0)}
+                        {hasBeenPartiallyFilled(price) && price.offerAmount > 0 && (
+                          <span style={{
+                            position: "absolute",
+                            right: "0.5rem",
+                            top: "0.75rem",
+                            fontSize: "0.75rem",
+                            padding: "0.125rem 0.375rem",
+                            backgroundColor: "#FEF3C7",
+                            color: "#92400E",
+                            borderRadius: "9999px",
+                            fontWeight: "600"
+                          }}>
+                            Partial
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap" }}>
                         <span style={{ 
                           display: "inline-flex", 
@@ -1034,6 +1156,7 @@ export default function Trading() {
                           color: price.status === 'active' ? "#065F46" : price.status === 'executed' ? "#1E40AF" : "#374151"
                         }}>
                           {price.status}
+                          {hasBeenPartiallyFilled(price) && price.status === 'active' && " (partial)"}
                         </span>
                       </td>
                       <td style={{ padding: "1rem 1.5rem", whiteSpace: "nowrap", fontSize: "0.875rem" }}>
