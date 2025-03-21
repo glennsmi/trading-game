@@ -47,14 +47,24 @@ export default function Trading() {
     fetchUserMarketPrices();
   }, [currentUser]);
 
+  // Near the top of the file, add a helper function
+  const isFirestoreError = (error: any): boolean => {
+    return (
+      error && 
+      (error.name === 'FirebaseError' || 
+       error.message?.includes('Firestore') || 
+       error.message?.includes('BloomFilterError'))
+    );
+  };
+
   // Debounced save function
   const debouncedSave = useCallback(
     async (data: MarketPriceFormData) => {
       console.log('Starting debouncedSave with data:', data);
       
-      if (!currentUser) {
-        console.error('No currentUser found, cannot save');
-        setError('You must be logged in to submit market prices');
+      if (!currentUser || !currentUser.uid) {
+        console.error('Authentication required: User not fully authenticated', currentUser);
+        setError('You must be fully logged in to submit market prices. Please sign out and sign in again.');
         return;
       }
 
@@ -94,20 +104,33 @@ export default function Trading() {
           console.log('Update successful');
         } else {
           console.log('Creating new quote...');
-          const newQuoteId = await tradingService.saveMarketPrice({
-            ...quoteData,
-            status: 'active',  // Required by the MarketPrice type 
-            timestamp: null    // Will be set by serverTimestamp() in the service
-          });
-          console.log('New quote created with ID:', newQuoteId);
-          setCurrentQuote(newQuoteId);
+          try {
+            const newQuoteId = await tradingService.saveMarketPrice({
+              ...quoteData,
+              status: 'active',  // Required by the MarketPrice type 
+              timestamp: null    // Will be set by serverTimestamp() in the service
+            });
+            console.log('New quote created with ID:', newQuoteId);
+            setCurrentQuote(newQuoteId);
+          } catch (saveError) {
+            console.error('Error during save operation:', saveError);
+            if (isFirestoreError(saveError)) {
+              setError('Database error: Please try again in a few moments. The system may still be initializing.');
+            } else {
+              throw saveError; // Re-throw if it's not a firestore error
+            }
+          }
         }
         
         setError('');
         console.log('Save operation completed successfully');
       } catch (err) {
         console.error('Detailed error saving market price:', err);
-        setError('Failed to save market price');
+        if (isFirestoreError(err)) {
+          setError('Database error: Please check your connection and permissions.');
+        } else {
+          setError('Failed to save market price: ' + (err instanceof Error ? err.message : String(err)));
+        }
       } finally {
         setSavingInProgress(false);
       }
@@ -175,31 +198,43 @@ export default function Trading() {
     }
   };
 
-  // Add a test function to verify Firestore connection
+  // Modify the test function to also check general permissions
   const testFirestoreConnection = async () => {
     try {
       setError('');
       console.log('Testing Firestore connection...');
-      // Create a test document
-      const testData = {
-        symbol: 'TEST/USD',
-        bidPrice: 1000,
-        bidAmount: 1,
-        offerPrice: 1001,
-        offerAmount: 1,
-        userId: currentUser?.uid || 'test-user',
-        status: 'active' as const,  // Use as const to fix type error
-        timestamp: null
-      };
       
-      console.log('Attempting to save test data:', testData);
-      const testId = await tradingService.saveMarketPrice(testData);
-      console.log('Test document created with ID:', testId);
+      // First, test general Firestore permissions
+      console.log('Testing general Firestore permissions...');
+      const permissionTest = await tradingService.testFirestorePermissions();
       
-      // Delete the test document immediately
-      console.log('Deleting test document...');
-      await tradingService.deleteMarketPrice(testId);
-      console.log('Test document deleted successfully');
+      if (!permissionTest.success) {
+        throw new Error(`Basic permission test failed: ${permissionTest.error}`);
+      }
+      
+      // If permissions test passes, proceed with user-specific test
+      if (currentUser) {
+        // Create a test document
+        const testData = {
+          symbol: 'TEST/USD',
+          bidPrice: 1000,
+          bidAmount: 1,
+          offerPrice: 1001,
+          offerAmount: 1,
+          userId: currentUser.uid,
+          status: 'active' as const,
+          timestamp: null
+        };
+        
+        console.log('Attempting to save test data with current user:', testData);
+        const testId = await tradingService.saveMarketPrice(testData);
+        console.log('Test document created with ID:', testId);
+        
+        // Delete the test document immediately
+        console.log('Deleting test document...');
+        await tradingService.deleteMarketPrice(testId);
+        console.log('Test document deleted successfully');
+      }
       
       alert('Firestore connection test successful! Check console for details.');
     } catch (err) {
@@ -207,6 +242,12 @@ export default function Trading() {
       setError('Firestore connection test failed: ' + (err instanceof Error ? err.message : String(err)));
     }
   };
+
+  // Also, let's log the user state when component renders
+  useEffect(() => {
+    console.log('Trading component loaded, auth state:', 
+      currentUser ? `Authenticated as ${currentUser.uid}` : 'Not authenticated');
+  }, [currentUser]);
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
