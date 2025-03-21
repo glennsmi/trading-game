@@ -288,9 +288,19 @@ export default function Trading() {
     return true;
   };
 
-  // Simplify executeTrade to directly use validated values
-  const executeTrade = async (marketPrice: MarketPrice, side: 'hit' | 'lift') => {
-    console.log('executeTrade called:', { side, marketPrice });
+  // Update the button click handler to pass the numeric amount directly to executeTrade
+  const handleTrade = (matchingPrice: MarketPrice, tradeType: 'hit' | 'lift', numericAmount: number) => {
+    console.log('handleTrade called:', { matchingPrice, tradeType, numericAmount });
+    executeTrade(matchingPrice, tradeType, numericAmount);
+  };
+
+  // Update the executeTrade function to accept the validated amount
+  const executeTrade = async (
+    marketPrice: MarketPrice, 
+    side: 'hit' | 'lift',
+    validatedAmount: number // Add this parameter to receive the pre-validated amount
+  ) => {
+    console.log('executeTrade called:', { side, marketPrice, validatedAmount });
     
     if (!currentUser) {
       setError('You must be logged in to trade');
@@ -300,25 +310,19 @@ export default function Trading() {
     // Clear any previous errors
     setError('');
 
-    // Get and directly convert the trade amount
-    const inputAmount = side === 'hit' ? tradeAmount.offer : tradeAmount.bid;
-    console.log('Raw trade amount from state:', { inputAmount, type: typeof inputAmount });
+    // Use the validated amount directly - don't try to re-read from state
+    const tradeAmountValue = validatedAmount;
+    console.log('Using pre-validated amount:', { tradeAmountValue });
     
-    // Keep it simple - direct conversion
-    const tradeAmountValue = typeof inputAmount === 'number' 
-      ? inputAmount 
-      : parseInt(String(inputAmount), 10);
+    const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
     
-    console.log('Forced numeric conversion result:', { tradeAmountValue, type: typeof tradeAmountValue, isNaN: isNaN(tradeAmountValue) });
-    
-    // Simple validation based directly on the numeric value
-    if (isNaN(tradeAmountValue) || tradeAmountValue <= 0) {
-      console.log('Invalid trade amount detected:', { tradeAmountValue });
+    // Simple validation - amount should already be validated, but check again
+    if (tradeAmountValue <= 0) {
+      console.log('Invalid trade amount detected (should not happen):', { tradeAmountValue });
       setError(`Please enter a valid trade amount greater than 0. Current value: ${tradeAmountValue}`);
       return;
     }
-    
-    const availableAmount = side === 'hit' ? marketPrice.offerAmount : marketPrice.bidAmount;
+
     if (tradeAmountValue > availableAmount) {
       console.log('Trade amount exceeds available amount:', { tradeAmountValue, availableAmount });
       setError(`Cannot trade ${tradeAmountValue} shares. Maximum available is ${availableAmount}`);
@@ -522,7 +526,7 @@ export default function Trading() {
                   if (matchingPrice) {
                     const tradeType = selectedPrice.type === 'bid' ? 'hit' : 'lift';
                     console.log('Executing trade:', { tradeType, matchingPrice });
-                    executeTrade(matchingPrice, tradeType);
+                    handleTrade(matchingPrice, tradeType, numericAmount);
                   } else {
                     console.error('No matching price found!');
                   }
@@ -1047,7 +1051,7 @@ export default function Trading() {
                               
                               if (price.status === 'active') {
                                 console.log('Price is active, executing hit trade');
-                                executeTrade(price, 'hit');
+                                handleTrade(price, 'hit', numericAmount);
                               } else {
                                 console.log('Price is not active, cannot trade');
                               }
@@ -1109,7 +1113,7 @@ export default function Trading() {
                               
                               if (price.status === 'active') {
                                 console.log('Price is active, executing lift trade');
-                                executeTrade(price, 'lift');
+                                handleTrade(price, 'lift', numericAmount);
                               } else {
                                 console.log('Price is not active, cannot trade');
                               }
