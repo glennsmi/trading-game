@@ -175,6 +175,39 @@ export default function Trading() {
     }
   };
 
+  // Add a test function to verify Firestore connection
+  const testFirestoreConnection = async () => {
+    try {
+      setError('');
+      console.log('Testing Firestore connection...');
+      // Create a test document
+      const testData = {
+        symbol: 'TEST/USD',
+        bidPrice: 1000,
+        bidAmount: 1,
+        offerPrice: 1001,
+        offerAmount: 1,
+        userId: currentUser?.uid || 'test-user',
+        status: 'active' as const,  // Use as const to fix type error
+        timestamp: null
+      };
+      
+      console.log('Attempting to save test data:', testData);
+      const testId = await tradingService.saveMarketPrice(testData);
+      console.log('Test document created with ID:', testId);
+      
+      // Delete the test document immediately
+      console.log('Deleting test document...');
+      await tradingService.deleteMarketPrice(testId);
+      console.log('Test document deleted successfully');
+      
+      alert('Firestore connection test successful! Check console for details.');
+    } catch (err) {
+      console.error('Firestore connection test failed:', err);
+      setError('Firestore connection test failed: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-5xl">
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Trading Dashboard</h1>
@@ -184,6 +217,24 @@ export default function Trading() {
           <p>{error}</p>
         </div>
       )}
+      
+      {/* Debug section */}
+      <div style={{ marginBottom: "1rem" }}>
+        <button 
+          onClick={testFirestoreConnection}
+          style={{ 
+            padding: "0.5rem 1rem", 
+            backgroundColor: "#4B5563", 
+            color: "white", 
+            borderRadius: "0.375rem", 
+            fontSize: "0.875rem",
+            fontWeight: "500",
+            cursor: "pointer"
+          }}
+        >
+          Test Firestore Connection
+        </button>
+      </div>
       
       {/* Market price submission form */}
       <div style={{ backgroundColor: "white", padding: "2rem", borderRadius: "0.5rem", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "2.5rem", border: "1px solid #E5E7EB" }}>

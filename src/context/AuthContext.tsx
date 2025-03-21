@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? `User authenticated: ${user.uid}` : "No user authenticated");
       setCurrentUser(user);
       setLoading(false);
     });
