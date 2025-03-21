@@ -268,12 +268,28 @@ export const tradingService = {
         };
         transaction.set(tradeRef, tradeData);
 
-        // Update the market price status to executed
-        transaction.update(marketPriceRef, {
-          status: 'executed',
-          timestamp: serverTimestamp(),
-          executedTradeId: tradeRef.id // Reference to the executed trade
-        });
+        // Determine the amount available and the side
+        const side = trade.side;
+        const availableAmount = side === 'hit' ? marketPrice.bidAmount : marketPrice.offerAmount;
+        const remainingAmount = availableAmount - trade.amount;
+
+        // Update the market price based on the remaining amount
+        if (remainingAmount > 0) {
+          // For partial trades: keep the price active but update the amount
+          const updateData = {
+            [side === 'hit' ? 'bidAmount' : 'offerAmount']: remainingAmount,
+            timestamp: serverTimestamp(),
+            lastTradeId: tradeRef.id
+          };
+          transaction.update(marketPriceRef, updateData);
+        } else {
+          // For full trades: mark the price as executed
+          transaction.update(marketPriceRef, {
+            status: 'executed',
+            timestamp: serverTimestamp(),
+            executedTradeId: tradeRef.id
+          });
+        }
 
         // Create entries in user's trade collections
         const buyerTradeRef = doc(collection(db, `users/${trade.buyerId}/trades`));
