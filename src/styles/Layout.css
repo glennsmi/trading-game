@@ -59,12 +59,14 @@
 }
 
 /* Mobile responsive layout */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .main-content {
-    margin-left: 60px;
+    margin-left: 0;
+    padding: 1.5rem;
+    transition: margin-left 0.3s ease;
   }
   
   .sidebar.expanded + .main-content {
-    margin-left: 250px;
+    margin-left: 0; /* Don't push content, overlay instead */
   }
 } 

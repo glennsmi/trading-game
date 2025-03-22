@@ -50,10 +50,11 @@ function AppContent() {
       <Sidebar />
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/trading" element={<Trading />} />
           <Route path="/account" element={<Account />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<Navigate to="/trading" replace />} />
+          <Route path="*" element={<Navigate to="/trading" replace />} />
         </Routes>
       </main>
     </div>

@@ -165,23 +165,42 @@
   transform: scale(1.1);
 }
 
+.sidebar-close {
+  display: none;
+  background: transparent;
+  border: none;
+  color: #4f46e5;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: transform 0.2s;
+}
+
+.sidebar-close:hover {
+  transform: scale(1.1);
+}
+
 /* For mobile responsiveness */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .sidebar {
-    width: 60px;
-    transform: translateX(0);
+    width: 0;
+    transform: translateX(-100%);
     transition: transform 0.3s ease, width 0.3s ease;
+    overflow: hidden;
+    z-index: 20;
   }
   
   .sidebar.expanded {
     width: 250px;
+    transform: translateX(0);
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
   }
   
   .sidebar-header h2,
   .nav-link span,
   .user-details,
   .logout-button span {
-    display: none;
+    opacity: 0;
+    transition: opacity 0.2s;
   }
   
   .sidebar.expanded .sidebar-header h2,
@@ -189,6 +208,7 @@
   .sidebar.expanded .user-details,
   .sidebar.expanded .logout-button span {
     display: block;
+    opacity: 1;
   }
   
   .nav-link svg {
@@ -216,6 +236,41 @@
   }
   
   .mobile-toggle {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    background-color: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 15;
+  }
+  
+  /* Overlay when sidebar is expanded */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.25);
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+  }
+  
+  .sidebar-close {
     display: block;
   }
 } 
