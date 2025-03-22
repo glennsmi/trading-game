@@ -116,6 +116,32 @@ export default function Trading() {
       setError('Bid price must be less than offer price');
       return;
     }
+    
+    // Validate that the bid doesn't cross the market
+    const activeOfferPrices = marketPrices
+      .filter(price => price.status === 'active' && price.userId !== currentUser.uid && price.offerPrice > 0)
+      .map(price => price.offerPrice);
+    
+    const lowestOfferExcludingUser = activeOfferPrices.length > 0 ? 
+      Math.min(...activeOfferPrices) : Number.MAX_VALUE;
+    
+    if (formData.bidPrice >= lowestOfferExcludingUser) {
+      setError(`Your bid price (${formData.bidPrice}) is higher than or equal to the best offer in the market (${lowestOfferExcludingUser}). Please enter a lower bid price.`);
+      return;
+    }
+    
+    // Validate that the offer doesn't cross the market
+    const activeBidPrices = marketPrices
+      .filter(price => price.status === 'active' && price.userId !== currentUser.uid && price.bidPrice > 0)
+      .map(price => price.bidPrice);
+    
+    const highestBidExcludingUser = activeBidPrices.length > 0 ?
+      Math.max(...activeBidPrices) : 0;
+    
+    if (formData.offerPrice <= highestBidExcludingUser) {
+      setError(`Your offer price (${formData.offerPrice}) is lower than or equal to the best bid in the market (${highestBidExcludingUser}). Please enter a higher offer price.`);
+      return;
+    }
 
     try {
       setSavingInProgress(true);
